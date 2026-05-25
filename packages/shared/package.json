@@ -3,6 +3,19 @@
   "version": "0.1.0",
   "description": "Shared types and DOM utilities for PixelAgent",
   "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/pixelagent/pixelagent.git",
+    "directory": "packages/shared"
+  },
+  "homepage": "https://github.com/pixelagent/pixelagent#readme",
+  "bugs": {
+    "url": "https://github.com/pixelagent/pixelagent/issues"
+  },
+  "keywords": ["pixelagent", "dom", "design-tools", "react"],
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -14,6 +27,7 @@
   },
   "files": ["dist"],
   "scripts": {
+    "prepublishOnly": "npm run build",
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run"

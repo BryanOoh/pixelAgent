@@ -10,7 +10,11 @@
     "test": "npm run test --workspaces --if-present",
     "test:e2e": "npm run test -w @pixelagent/mcp",
     "typecheck": "npm run typecheck --workspaces --if-present",
-    "clean": "rm -rf packages/*/dist node_modules"
+    "clean": "rm -rf packages/*/dist node_modules",
+    "pack:check": "node scripts/pack-check.mjs",
+    "publish:check-scope": "node scripts/npm-scope-check.mjs",
+    "publish:beta": "npm run pack:check && npm publish --access public --tag beta -w @pixelagent/shared && npm publish --access public --tag beta -w @pixelagent/mcp && npm publish --access public --tag beta -w @pixelagent/cli && npm publish --access public --tag beta -w pixelagent",
+    "publish:stable": "npm run pack:check && npm publish --access public -w @pixelagent/shared && npm publish --access public -w @pixelagent/mcp && npm publish --access public -w @pixelagent/cli && npm publish --access public -w pixelagent"
   },
   "engines": {
     "node": ">=18"

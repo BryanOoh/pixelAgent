@@ -3,6 +3,23 @@
   "version": "0.1.0",
   "description": "Live DOM layer for vibe coders — annotate and edit running React apps",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/pixelagent/pixelagent.git",
+    "directory": "packages/pixelagent"
+  },
+  "homepage": "https://github.com/pixelagent/pixelagent#readme",
+  "bugs": {
+    "url": "https://github.com/pixelagent/pixelagent/issues"
+  },
+  "keywords": [
+    "pixelagent",
+    "react",
+    "design-tools",
+    "annotation",
+    "devtools",
+    "shadow-dom"
+  ],
   "type": "module",
   "bin": {
     "pixelagent": "./bin/pixelagent.js"
@@ -20,6 +37,7 @@
   "files": ["dist", "bin"],
   "sideEffects": ["**/*.css"],
   "scripts": {
+    "prepublishOnly": "npm run build",
     "build": "vite build && tsc -p tsconfig.build.json --emitDeclarationOnly",
     "dev": "vite build --watch",
     "test": "vitest run",

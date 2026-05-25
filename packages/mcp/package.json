@@ -3,6 +3,19 @@
   "version": "0.1.0",
   "description": "Local MCP server for PixelAgent — apply diffs, resolve elements, read design tokens",
   "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/pixelagent/pixelagent.git",
+    "directory": "packages/mcp"
+  },
+  "homepage": "https://github.com/pixelagent/pixelagent#readme",
+  "bugs": {
+    "url": "https://github.com/pixelagent/pixelagent/issues"
+  },
+  "keywords": ["pixelagent", "mcp", "model-context-protocol", "design-tools"],
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -29,6 +42,7 @@
   },
   "files": ["dist"],
   "scripts": {
+    "prepublishOnly": "npm run build",
     "build": "tsc -p tsconfig.json",
     "dev": "node --watch dist/index.js",
     "start": "node dist/index.js",

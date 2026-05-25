@@ -6,7 +6,18 @@ Point at running code — not a screenshot. Your AI agent writes the exact diff.
 
 ## Status
 
-Pre-release `0.1.0` — packages build and test locally; npm publish pending. See `CHANGELOG.md`.
+Pre-release `0.1.0` — packages build and test locally. See `CHANGELOG.md`.
+
+### Publish checklist
+
+```bash
+npm test
+npm run publish:check-scope   # requires npm login + @pixelagent org
+npm run pack:check
+npm run publish:beta          # or publish:stable
+```
+
+Override monorepo URL before publish: `export PIXELAGENT_REPO_URL=git+https://github.com/<you>/<repo>.git`
 
 ## Quick start
 
