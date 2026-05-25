@@ -1,0 +1,546 @@
+/* Liquid Glass material styles */
+
+.pa-glass-surface {
+  position: relative;
+  /* Do NOT use isolation: isolate — it prevents backdrop-filter from sampling
+     page content behind the glass (hero text stays sharp). */
+  overflow: hidden;
+  /* Frosted backdrop + rim — set on the surface (not a buried child layer). */
+  background: var(--pa-glass-surface-fill);
+  border: 1px solid var(--pa-glass-border);
+  box-shadow: var(--pa-glass-shadow), var(--pa-glass-rim);
+  border-radius: inherit;
+  /* Pixel literals — var() and url(#svg) break backdrop-filter in Safari */
+  backdrop-filter: blur(4px) saturate(130%);
+  -webkit-backdrop-filter: blur(4px) saturate(130%);
+  will-change: backdrop-filter;
+}
+
+/* Safari / no-SVG-refraction fallback for toolbar frost */
+.pa-glass-surface.pa-toolbar-glass {
+  backdrop-filter: blur(6px) saturate(138%);
+  -webkit-backdrop-filter: blur(6px) saturate(138%);
+}
+
+/* Legacy hook — blur now lives on .pa-glass-surface via inline styles */
+.pa-glass-surface-blur {
+  display: none;
+}
+
+/* Decorative gradient sheen — sits over the refracted backdrop. */
+.pa-glass-surface-bg {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: inherit;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0) 28%),
+    linear-gradient(0deg, rgba(255, 255, 255, 0.03) 0%, rgba(255, 255, 255, 0) 22%);
+  pointer-events: none;
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .pa-glass-surface {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    background: var(--pa-glass-fallback-bg);
+    border-color: var(--pa-glass-fallback-border);
+    box-shadow: none;
+  }
+  .pa-glass-surface-bg {
+    filter: none;
+    background: transparent;
+  }
+}
+
+.pa-glass-surface--accent {
+  background: var(--pa-glass-tint-accent);
+}
+
+/* Specular highlight — offset radial bright spot like the GLSL highlight */
+.pa-glass-surface-shine {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  border-radius: inherit;
+  pointer-events: none;
+  background: var(--pa-glass-specular);
+  mix-blend-mode: screen;
+}
+
+/* Bottom underglow — cool reflection from below */
+.pa-glass-surface::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  border-radius: inherit;
+  pointer-events: none;
+  background: var(--pa-glass-underglow);
+  mix-blend-mode: screen;
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .pa-glass-surface-shine,
+  .pa-glass-surface::after {
+    display: none;
+  }
+}
+
+.pa-glass-surface-content {
+  position: relative;
+  z-index: 3;
+}
+
+/* Container — toolbar row of glass groups */
+.pa-glass-container {
+  display: flex;
+  align-items: center;
+  gap: var(--pa-glass-group-gap);
+  font-family: var(--pa-font);
+}
+
+/* Floating draggable toolbar */
+.pa-toolbar-float {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  /* Avoid transform here — it creates a containing block that can break
+     backdrop-filter sampling of host-page content behind the glass. */
+  /* Centered until useDraggable sets explicit left; no transform (see above). */
+  margin-left: -150px;
+  z-index: var(--pa-z);
+  touch-action: none;
+}
+
+.pa-toolbar-float--dragging {
+  user-select: none;
+}
+
+.pa-toolbar-inner {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px 6px 6px;
+}
+
+.pa-toolbar-drag {
+  all: unset;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  color: var(--pa-text);
+  cursor: grab;
+  touch-action: none;
+  flex-shrink: 0;
+  transition: background 150ms ease;
+}
+
+.pa-toolbar-drag:hover {
+  background: var(--pa-glass-control-hover);
+}
+
+.pa-brand-cursor {
+  display: block;
+  flex-shrink: 0;
+  pointer-events: none;
+}
+
+.pa-brand-cursor--pointer {
+  margin-top: -2px;
+  margin-left: -1px;
+}
+
+.pa-brand-cursor--minimal {
+  display: block;
+}
+
+.pa-toolbar-float--dragging .pa-toolbar-drag {
+  cursor: grabbing;
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.pa-toolbar-divider {
+  width: 1px;
+  height: 24px;
+  background: var(--pa-toolbar-divider-color);
+  flex-shrink: 0;
+}
+
+.pa-toolbar-segment {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 4px;
+  border-radius: 999px;
+  background: var(--pa-toolbar-segment-bg);
+  border: 1px solid var(--pa-toolbar-segment-border);
+}
+
+.pa-toolbar-capture-select {
+  width: auto;
+  min-width: 76px;
+  padding: 6px 28px 6px 10px;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.pa-toolbar-close {
+  margin-left: 2px;
+  flex-shrink: 0;
+}
+
+.pa-toolbar-status {
+  font-size: 11px;
+  padding: 0 8px;
+  white-space: nowrap;
+}
+
+.pa-settings-menu {
+  position: absolute;
+  right: 8px;
+  bottom: calc(100% + 12px);
+  z-index: 2;
+  width: min(280px, calc(100vw - 32px));
+  pointer-events: auto;
+}
+
+.pa-settings-menu-panel {
+  width: 100%;
+}
+
+.pa-settings-menu-inner {
+  padding: 14px 16px 16px;
+}
+
+.pa-settings-menu-header {
+  margin-bottom: 14px;
+}
+
+.pa-settings-menu-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--pa-text);
+}
+
+.pa-settings-menu-subtitle {
+  margin: 4px 0 0;
+  font-size: 11px;
+  color: var(--pa-text-secondary);
+}
+
+.pa-settings-section {
+  padding: 12px 0;
+  border-top: 1px solid var(--pa-divider);
+}
+
+.pa-settings-section:first-of-type {
+  border-top: none;
+  padding-top: 0;
+}
+
+.pa-settings-section-label {
+  display: block;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--pa-text-secondary);
+  margin-bottom: 8px;
+}
+
+.pa-settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.pa-settings-row-value {
+  font-size: 12px;
+  color: var(--pa-text);
+}
+
+.pa-settings-hint {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--pa-text-secondary);
+}
+
+/* Group — merged capsule */
+.pa-glass-group {
+  flex-shrink: 0;
+}
+
+.pa-glass-group-inner {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px 6px;
+}
+
+.pa-glass-group--brand .pa-glass-group-inner {
+  padding: 6px 14px;
+}
+
+/* Buttons inside glass groups */
+.pa-glass-btn {
+  all: unset;
+  box-sizing: border-box;
+  cursor: pointer;
+  font-family: var(--pa-font);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--pa-text);
+  padding: 6px 12px;
+  border-radius: var(--pa-glass-radius-control);
+  white-space: nowrap;
+  transition:
+    background var(--pa-glass-morph-duration) var(--pa-glass-morph-easing),
+    transform 120ms ease,
+    color var(--pa-glass-morph-duration) ease;
+}
+
+.pa-glass-btn:hover:not(:disabled) {
+  background: var(--pa-glass-control-hover);
+}
+
+.pa-glass-btn:active:not(:disabled) {
+  transform: scale(0.97);
+  background: var(--pa-glass-control-active);
+}
+
+.pa-glass-btn:disabled {
+  opacity: 0.38;
+  cursor: not-allowed;
+}
+
+/* Primary action — liquid glass (Apply, Add, Copy, Save) */
+.pa-glass-btn--glass-primary,
+.pa-glass-btn--prominent {
+  position: relative;
+  color: #fff;
+  font-weight: 600;
+  padding: 8px 16px;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(12px) saturate(140%);
+  -webkit-backdrop-filter: blur(12px) saturate(140%);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.4),
+    0 4px 16px rgba(0, 0, 0, 0.15);
+}
+
+.pa-glass-btn--glass-primary::before,
+.pa-glass-btn--prominent::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.22) 0%,
+    transparent 45%,
+    transparent 100%
+  );
+  pointer-events: none;
+}
+
+.pa-glass-btn--glass-primary:hover:not(:disabled),
+.pa-glass-btn--prominent:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.16);
+  border-color: rgba(255, 255, 255, 0.38);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.45),
+    0 6px 20px rgba(0, 0, 0, 0.2);
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .pa-glass-btn--glass-primary,
+  .pa-glass-btn--prominent {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    background: rgba(60, 60, 70, 0.9);
+  }
+}
+
+/* Icon-only close */
+.pa-glass-btn--icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border-radius: 50%;
+  color: rgba(255, 255, 255, 0.75);
+  background: rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+
+.pa-glass-btn--icon:hover:not(:disabled) {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.22);
+}
+
+.pa-glass-btn--ghost {
+  color: var(--pa-text-secondary);
+  padding: 6px 10px;
+}
+
+.pa-glass-btn--ghost:hover:not(:disabled) {
+  color: var(--pa-text);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.pa-glass-btn--active {
+  background: rgba(99, 102, 241, 0.45);
+  color: #fff;
+}
+
+.pa-glass-btn--sm {
+  padding: 2px 8px;
+  font-size: 11px;
+}
+
+/* Panels */
+.pa-glass-panel {
+  font-family: var(--pa-font);
+  color: var(--pa-text);
+}
+
+.pa-glass-panel--sheet.pa-glass-panel--left {
+  position: fixed;
+  top: 16px;
+  left: 16px;
+  z-index: var(--pa-z);
+  width: 288px;
+  max-height: calc(100vh - 100px);
+}
+
+.pa-glass-panel--sheet.pa-glass-panel--right {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  z-index: var(--pa-z);
+  width: 360px;
+  max-height: 60vh;
+}
+
+.pa-glass-panel--popover {
+  position: fixed;
+  z-index: calc(var(--pa-z) + 2);
+  width: 300px;
+}
+
+.pa-glass-panel .pa-glass-surface-content {
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.pa-glass-panel--sheet .pa-glass-surface-content {
+  padding: 14px;
+  overflow-y: auto;
+  max-height: inherit;
+}
+
+.pa-glass-panel--sheet.pa-glass-panel--right:not(.pa-edit-panel-glass) .pa-glass-surface-content {
+  padding: 0;
+  gap: 0;
+}
+
+/* Toolbar brand & badges */
+.pa-toolbar-brand {
+  font-weight: 600;
+  font-size: 12px;
+  color: var(--pa-accent-bright);
+  letter-spacing: -0.01em;
+}
+
+.pa-mode-badge {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--pa-text-secondary);
+  padding: 4px 10px;
+}
+
+.pa-status {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--pa-success);
+  padding: 4px 10px;
+  animation: pa-status-in 280ms var(--pa-glass-morph-easing);
+}
+
+/* Inline copy feedback — same footprint as the Copy / Copy all button */
+.pa-copy-feedback-slot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  border-radius: 999px;
+  flex-shrink: 0;
+  animation: pa-status-in 280ms var(--pa-glass-morph-easing);
+}
+
+.pa-copy-feedback-slot--toolbar {
+  padding: 8px 16px;
+  min-height: 34px;
+}
+
+.pa-copy-feedback-slot--session {
+  padding: 8px 14px;
+  min-height: 34px;
+}
+
+.pa-copy-feedback-slot--item {
+  padding: 6px 10px;
+  min-width: 44px;
+  min-height: 28px;
+  font-size: 11px;
+}
+
+@keyframes pa-status-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pa-status {
+    animation: none;
+  }
+}
+
+.pa-glass-divider {
+  width: 1px;
+  height: 16px;
+  background: rgba(255, 255, 255, 0.15);
+  margin: 0 2px;
+  flex-shrink: 0;
+}

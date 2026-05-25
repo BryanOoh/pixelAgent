@@ -1,0 +1,48 @@
+{
+  "name": "@pixelagent/mcp",
+  "version": "0.1.0",
+  "description": "Local MCP server for PixelAgent — apply diffs, resolve elements, read design tokens",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "bin": {
+    "pixelagent-mcp": "./dist/index.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./vite-plugin": {
+      "types": "./dist/vite-plugin.d.ts",
+      "import": "./dist/vite-plugin.js"
+    }
+  },
+  "peerDependencies": {
+    "vite": ">=5.0.0"
+  },
+  "peerDependenciesMeta": {
+    "vite": {
+      "optional": true
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "node --watch dist/index.js",
+    "start": "node dist/index.js",
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.1",
+    "@pixelagent/shared": "0.1.0",
+    "zod": "^3.25.56"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.29",
+    "typescript": "^5.8.3",
+    "vitest": "^3.2.1"
+  }
+}

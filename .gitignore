@@ -1,0 +1,52 @@
+# ---------------------------------------------------------------------------
+# Internal memos & local workflow (not published)
+# ---------------------------------------------------------------------------
+
+# Design / PRD (design.md, DESIGN.md, package-level design notes)
+design.md
+DESIGN.md
+Design.md
+
+# Team & agent instructions (Claude Code / Cursor)
+CLAUDE.md
+CLAUDE.local.md
+.claude/
+
+# Internal checklists & planning notes
+docs/
+
+# Cursor workspace (MCP, rules, skills)
+.cursor/
+
+# Personal Claude overrides (redundant with .claude/ but explicit)
+.claude/settings.local.json
+
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+packages/*/dist
+*.tsbuildinfo
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# OS / editor
+.DS_Store
+*.swp
+*.swo
+.idea/
+.vscode/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Test / coverage
+coverage/
+
+# PixelAgent local state (if any)
+.pixelagent/

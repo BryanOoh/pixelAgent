@@ -1,0 +1,22 @@
+{
+  "name": "pixelagent-monorepo",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "npm run build -w @pixelagent/shared && npm run build -w pixelagent && npm run build -w @pixelagent/mcp && npm run build -w @pixelagent/cli",
+    "dev": "npm run dev -w @pixelagent/demo",
+    "test": "npm run test --workspaces --if-present",
+    "test:e2e": "npm run test -w @pixelagent/mcp",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "clean": "rm -rf packages/*/dist node_modules"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.60.0",
+    "playwright": "^1.60.0"
+  }
+}
