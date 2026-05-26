@@ -236,7 +236,8 @@
   position: fixed;
   right: 16px;
   top: 16px;
-  z-index: var(--pa-z);
+  /* Above toolbar (toolbar uses z-index: var(--pa-z)) */
+  z-index: calc(var(--pa-z) + 4);
   width: 312px;
   max-height: calc(100vh - 32px);
 }

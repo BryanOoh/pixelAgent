@@ -211,6 +211,13 @@ function resolveFiberTypeName(type: unknown): string | null {
   return null;
 }
 
+// Production bundlers (Terser, SWC) mangle component function names down to
+// 1–2 characters (`S`, `e`, `Ab`). Those reveal nothing to a designer, so we
+// skip them and let getElementDisplayLabel fall through to tag + text/class.
+function isLikelyMinifiedName(name: string): boolean {
+  return name.length <= 2;
+}
+
 /** Nearest React component name for design-mode-style labels. */
 export function getNearestReactComponentName(element: Element): string | null {
   const fiberKey = Object.keys(element).find(
@@ -223,7 +230,7 @@ export function getNearestReactComponentName(element: Element): string | null {
 
   while (fiber) {
     const name = resolveFiberTypeName(fiber.type);
-    if (name && !isRootWrapperName(name)) return name;
+    if (name && !isRootWrapperName(name) && !isLikelyMinifiedName(name)) return name;
     fiber = fiber.return;
   }
 
