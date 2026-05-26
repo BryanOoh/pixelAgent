@@ -154,7 +154,9 @@ const ROOT_WRAPPER_NAMES = new Set([
 ]);
 
 function isRootWrapperName(name: string): boolean {
-  return ROOT_WRAPPER_NAMES.has(name) || /^Next/.test(name);
+  // /^__/ catches framework internals like __next_root_layout_boundary__
+  // that Next.js inserts above user components in the fiber tree.
+  return ROOT_WRAPPER_NAMES.has(name) || /^Next/.test(name) || /^__/.test(name);
 }
 
 const TEXT_PREVIEW_TAGS = new Set([
