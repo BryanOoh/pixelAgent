@@ -16,6 +16,14 @@ export function parseOpacity(value: string): number | null {
   return Number.isFinite(n) && n >= 0 && n <= 1 ? n : null;
 }
 
+/** True when a border-width value represents a visible stroke (uniform or single px). */
+export function hasPositiveBorderWidth(value: string): boolean {
+  const uniform = parseUniformPx(value);
+  if (uniform !== null) return uniform > 0;
+  const single = parsePx(value);
+  return single !== null && single > 0;
+}
+
 /** True when all sides share the same px length (slider-safe). */
 export function parseUniformPx(value: string): number | null {
   const parts = value.trim().split(/\s+/).filter(Boolean);
@@ -45,6 +53,9 @@ export const PROP_CONTROLS: Record<string, PropControlConfig> = {
   'background-color': { kind: 'text' },
   color: { kind: 'text' },
   'font-size': { kind: 'px', min: 8, max: 128, step: 1 },
+  'line-height': { kind: 'text' },
+  gap: { kind: 'uniform-px', min: 0, max: 80, step: 1 },
+  'border-width': { kind: 'uniform-px', min: 0, max: 24, step: 1 },
   'border-radius': { kind: 'px', min: 0, max: 48, step: 1 },
   opacity: { kind: 'opacity', min: 0, max: 1, step: 0.01 },
 };

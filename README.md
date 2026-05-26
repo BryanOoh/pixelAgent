@@ -8,6 +8,8 @@ Point at running code — not a screenshot. Your AI agent writes the exact diff.
 
 Pre-release `0.1.0` — packages build and test locally. See `CHANGELOG.md`.
 
+**Annotate** (click → note → copy) is the primary early-access path; Edit + MCP Apply are secondary beta surfaces.
+
 ### Publish checklist
 
 ```bash
@@ -34,9 +36,21 @@ npm run dev
 # Run tests
 npm test
 
+# Annotate golden path (unit + Playwright on demo)
+npm run test:e2e:annotate
+
 # Configure MCP (optional)
 npx pixelagent setup
 ```
+
+### Annotate in 30 seconds
+
+1. Open the demo → click **Annotate** on the floating toolbar.
+2. Click any page element → type a **Note** → **Add**.
+3. Session opens on the right; click toolbar **Copy** or session **Copy all** (same markdown).
+4. Paste into your agent chat.
+
+No verbosity or viewport toggles — context is included automatically. See [`docs/annotate.md`](docs/annotate.md) and [`docs/testing-annotate.md`](docs/testing-annotate.md).
 
 In your app:
 
@@ -86,6 +100,8 @@ pixelAgent/
 ## Docs
 
 - [Design document](./design.md) — architecture, user stories, roadmap
+- [Annotate product notes](./docs/annotate.md) — UX decisions (e.g. toolbar + session Copy)
+- [Annotate testing](./docs/testing-annotate.md) — golden path manual + E2E
 - [Team instructions](./CLAUDE.md) — development workflow
 
 ## License

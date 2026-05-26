@@ -5,28 +5,34 @@ interface ElementOverlayProps {
   element: Element | null;
   selected: Element | null;
   multiSelected?: Element[];
+  /** Which element was clicked (stronger ring when multiple are selected). */
+  primarySelected?: Element | null;
 }
 
 export function ElementOverlay({
   element,
   selected,
   multiSelected = [],
+  primarySelected = null,
 }: ElementOverlayProps) {
   const [highlights, setHighlights] = useState<
-    Array<{ rect: DOMRect; label: string; isSelected: boolean }>
+    Array<{ rect: DOMRect; label: string; isSelected: boolean; isPrimary: boolean }>
   >([]);
+
+  const primary = primarySelected ?? selected;
 
   useEffect(() => {
     const targets = new Map<Element, boolean>();
+    const scopeMode = multiSelected.length > 0;
 
-    if (element && !selected) {
+    if (element && !selected && !scopeMode) {
       targets.set(element, false);
     }
     if (selected) {
       targets.set(selected, true);
     }
     for (const el of multiSelected) {
-      if (el !== selected) targets.set(el, true);
+      targets.set(el, true);
     }
 
     if (targets.size === 0) {
@@ -40,6 +46,7 @@ export function ElementOverlay({
           rect: el.getBoundingClientRect(),
           label: getElementDisplayLabel(el),
           isSelected,
+          isPrimary: primary !== null && el === primary,
         }))
       );
     };
@@ -60,18 +67,29 @@ export function ElementOverlay({
       window.removeEventListener('scroll', update, true);
       window.removeEventListener('resize', update);
     };
-  }, [element, selected, multiSelected]);
+  }, [element, selected, multiSelected, primary]);
 
   if (highlights.length === 0) return null;
 
-  const primary = highlights.find((h) => h.isSelected) ?? highlights[0];
+  const tooltipAnchor =
+    highlights.find((h) => h.isPrimary) ?? highlights.find((h) => h.isSelected) ?? highlights[0];
+  const selectedCount = highlights.filter((h) => h.isSelected).length;
 
   return (
     <>
       {highlights.map((item, index) => (
         <div
           key={`${item.label}-${index}`}
-          className={`pa-highlight ${item.isSelected ? 'pa-highlight-selected' : ''}`}
+          className={[
+            'pa-highlight',
+            item.isSelected ? 'pa-highlight-selected' : '',
+            item.isPrimary ? 'pa-highlight-primary' : '',
+            item.isSelected && !item.isPrimary && selectedCount > 1
+              ? 'pa-highlight-scope'
+              : '',
+          ]
+            .filter(Boolean)
+            .join(' ')}
           style={{
             top: item.rect.top,
             left: item.rect.left,
@@ -83,11 +101,13 @@ export function ElementOverlay({
       <div
         className="pa-tooltip"
         style={{
-          top: Math.max(0, primary.rect.top - 28),
-          left: primary.rect.left,
+          top: Math.max(0, tooltipAnchor.rect.top - 28),
+          left: tooltipAnchor.rect.left,
         }}
       >
-        {highlights.length > 1 ? `${highlights.length} selected` : primary.label}
+        {selectedCount > 1
+          ? `${selectedCount} instances · ${tooltipAnchor.label}`
+          : tooltipAnchor.label}
       </div>
     </>
   );

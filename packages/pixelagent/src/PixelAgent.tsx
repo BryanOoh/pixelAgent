@@ -12,7 +12,8 @@ import {
   detectStylingSystem,
   formatAllAnnotations,
   formatAnnotation,
-  getCssSelector,
+  countElementInstances,
+  getScopeSelector,
   getElementsInArea,
   readReactSource,
 } from '@pixelagent/shared';
@@ -20,6 +21,7 @@ import { EditPanel } from './edit/EditPanel';
 import { AnnotationPopover } from './annotate/AnnotationPopover';
 import { AreaSelectOverlay } from './annotate/AreaSelectOverlay';
 import { buildAnnotationEntry } from './annotate/buildAnnotationEntry';
+import { AnnotationBadgesOverlay } from './annotate/AnnotationBadgesOverlay';
 import { ElementOverlay } from './annotate/ElementOverlay';
 import { isPixelAgentElement, pickElementAt, PA_OWN_SELECTOR } from './annotate/pickElement';
 import { SessionPanel } from './annotate/SessionPanel';
@@ -204,6 +206,13 @@ export function PixelAgent({ ui, hostTheme, onHostThemeChange }: PixelAgentProps
   );
 
   useEffect(() => {
+    if (!selectedElement || targetScope !== 'all-instances') return;
+    if (countElementInstances(selectedElement) <= 1) {
+      setTargetScope('this-instance');
+    }
+  }, [selectedElement, targetScope]);
+
+  useEffect(() => {
     if (!active) return;
 
     document.addEventListener('mousemove', handleMouseMove, true);
@@ -277,7 +286,7 @@ export function PixelAgent({ ui, hostTheme, onHostThemeChange }: PixelAgentProps
       const source = readReactSource(selectedElement);
       const payload: ApplyPayload = {
         schemaVersion: 1,
-        elementSelector: getCssSelector(selectedElement),
+        elementSelector: getScopeSelector(selectedElement, targetScope),
         sourceFile: source.sourceFile,
         lineNumber: source.lineNumber,
         targetScope,
@@ -356,6 +365,7 @@ export function PixelAgent({ ui, hostTheme, onHostThemeChange }: PixelAgentProps
             selected={selectedElement}
             multiSelected={multiSelected}
           />
+          <AnnotationBadgesOverlay annotations={annotations} />
           <AreaSelectOverlay area={areaRect} isDragging={!!areaDrag} />
         </>
       )}

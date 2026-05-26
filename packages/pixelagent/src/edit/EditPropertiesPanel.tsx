@@ -1,0 +1,349 @@
+import type { ElementState, TargetScope, TextEditKind } from '@pixelagent/shared';
+import { ColorField } from './ColorField';
+import { EditSection } from './EditSection';
+import { FontFamilySelect } from './FontFamilySelect';
+import { PropertyField } from './PropertyField';
+import { MultiSegmentedControl, SegmentedControl } from './SegmentedControl';
+import {
+  IconAlignCenter,
+  IconAlignJustify,
+  IconAlignLeft,
+  IconAlignRight,
+  IconStrikethrough,
+} from './TypographyIcons';
+import {
+  hasTextDecoration,
+  isBoldWeight,
+  isItalicStyle,
+  normalizeTextAlign,
+  toggleBoldWeight,
+  toggleItalicStyle,
+  toggleTextDecoration,
+  type TextAlignValue,
+} from './styleUtils';
+
+const BORDER_STYLE_OPTIONS = [
+  'none',
+  'solid',
+  'dashed',
+  'dotted',
+  'double',
+  'groove',
+  'ridge',
+  'inset',
+  'outset',
+] as const;
+
+export interface EditPropertiesPanelProps {
+  values: Record<string, string>;
+  onPropertyChange: (property: string, value: string) => void;
+  textKind: TextEditKind;
+  textValue: string;
+  onTextChange: (value: string) => void;
+  targetScope: TargetScope;
+  onTargetScopeChange: (scope: TargetScope) => void;
+  elementState: ElementState;
+  onElementStateChange: (state: ElementState) => void;
+  instanceCount: number;
+  scopeHint?: string | null;
+  stateHint?: string | null;
+}
+
+export function EditPropertiesPanel({
+  values,
+  onPropertyChange,
+  textKind,
+  textValue,
+  onTextChange,
+  targetScope,
+  onTargetScopeChange,
+  elementState,
+  onElementStateChange,
+  instanceCount,
+  scopeHint,
+  stateHint,
+}: EditPropertiesPanelProps) {
+  const fontWeight = values['font-weight'] ?? '';
+  const fontStyle = values['font-style'] ?? 'normal';
+  const textDecoration = values['text-decoration'] ?? 'none';
+  const textAlign = normalizeTextAlign(values['text-align'] ?? 'left');
+
+  const showGap = Boolean(values.gap?.trim());
+  const showDisplay = Boolean(values.display?.trim());
+  const borderStyle = values['border-style'] ?? 'none';
+  const borderStyleOptions: string[] = [...BORDER_STYLE_OPTIONS];
+  if (
+    borderStyle &&
+    !BORDER_STYLE_OPTIONS.includes(borderStyle as (typeof BORDER_STYLE_OPTIONS)[number])
+  ) {
+    borderStyleOptions.push(borderStyle);
+  }
+
+  return (
+    <div className="pa-edit-sections">
+      <EditSection title="Targeting" defaultOpen>
+        <div className="pa-edit-field-grid pa-edit-field-grid--2">
+          <label className="pa-edit-mini-field">
+            <span className="pa-edit-field-label">Scope</span>
+            <select
+              className="pa-select"
+              value={targetScope}
+              onChange={(e) => onTargetScopeChange(e.target.value as TargetScope)}
+            >
+              <option value="this-instance">This instance</option>
+              <option value="all-instances" disabled={instanceCount <= 1}>
+                All ({instanceCount})
+              </option>
+            </select>
+          </label>
+          <label className="pa-edit-mini-field">
+            <span className="pa-edit-field-label">State</span>
+            <select
+              className="pa-select"
+              value={elementState}
+              onChange={(e) => onElementStateChange(e.target.value as ElementState)}
+            >
+              <option value="normal">Normal</option>
+              <option value="hover">Hover</option>
+              <option value="focus">Focus</option>
+              <option value="active">Active</option>
+              <option value="disabled">Disabled</option>
+            </select>
+          </label>
+        </div>
+        {scopeHint ? <p className="pa-edit-inline-hint">{scopeHint}</p> : null}
+        {stateHint ? <p className="pa-edit-inline-hint">{stateHint}</p> : null}
+      </EditSection>
+
+      {textKind !== 'none' && (
+        <EditSection title="Content" defaultOpen>
+          <label className="pa-edit-stack-field">
+            <span className="pa-edit-field-label">Text</span>
+            <textarea
+              className="pa-textarea pa-edit-text-input"
+              value={textValue}
+              onChange={(e) => onTextChange(e.target.value)}
+              rows={textKind === 'value' ? 2 : 3}
+              placeholder="Edit visible text…"
+            />
+          </label>
+        </EditSection>
+      )}
+
+      <EditSection title="Typography" defaultOpen>
+        <FontFamilySelect
+          value={values['font-family'] ?? ''}
+          onChange={(v) => onPropertyChange('font-family', v)}
+        />
+
+        <div className="pa-edit-field-block">
+          <span className="pa-edit-field-label">Style</span>
+          <MultiSegmentedControl
+            ariaLabel="Text style"
+            options={[
+              {
+                id: 'bold',
+                title: 'Bold',
+                pressed: isBoldWeight(fontWeight),
+                content: <span className="pa-segmented-type pa-segmented-type--bold">B</span>,
+              },
+              {
+                id: 'italic',
+                title: 'Italic',
+                pressed: isItalicStyle(fontStyle),
+                content: <span className="pa-segmented-type pa-segmented-type--italic">I</span>,
+              },
+              {
+                id: 'underline',
+                title: 'Underline',
+                pressed: hasTextDecoration(textDecoration, 'underline'),
+                content: (
+                  <span className="pa-segmented-type pa-segmented-type--underline">U</span>
+                ),
+              },
+              {
+                id: 'strikethrough',
+                title: 'Strikethrough',
+                pressed: hasTextDecoration(textDecoration, 'line-through'),
+                content: <IconStrikethrough className="pa-segmented-icon" />,
+              },
+            ]}
+            onToggle={(id) => {
+              if (id === 'bold') onPropertyChange('font-weight', toggleBoldWeight(fontWeight));
+              else if (id === 'italic') onPropertyChange('font-style', toggleItalicStyle(fontStyle));
+              else if (id === 'underline') {
+                onPropertyChange(
+                  'text-decoration',
+                  toggleTextDecoration(textDecoration, 'underline')
+                );
+              } else if (id === 'strikethrough') {
+                onPropertyChange(
+                  'text-decoration',
+                  toggleTextDecoration(textDecoration, 'line-through')
+                );
+              }
+            }}
+          />
+        </div>
+
+        <div className="pa-edit-field-block">
+          <span className="pa-edit-field-label">Align</span>
+          <SegmentedControl<TextAlignValue>
+            ariaLabel="Text align"
+            value={textAlign}
+            onChange={(v) => onPropertyChange('text-align', v)}
+            options={[
+              {
+                value: 'left',
+                title: 'Align left',
+                content: <IconAlignLeft className="pa-segmented-icon" />,
+              },
+              {
+                value: 'center',
+                title: 'Align center',
+                content: <IconAlignCenter className="pa-segmented-icon" />,
+              },
+              {
+                value: 'right',
+                title: 'Align right',
+                content: <IconAlignRight className="pa-segmented-icon" />,
+              },
+              {
+                value: 'justify',
+                title: 'Justify',
+                content: <IconAlignJustify className="pa-segmented-icon" />,
+              },
+            ]}
+          />
+        </div>
+
+        <div className="pa-edit-field-grid pa-edit-field-grid--2 pa-edit-size-row">
+          <PropertyField
+            compact
+            property="font-size"
+            label="Font size (px)"
+            value={values['font-size'] ?? ''}
+            onChange={(v) => onPropertyChange('font-size', v)}
+          />
+          <PropertyField
+            compact
+            property="line-height"
+            label="Line height (px)"
+            value={values['line-height'] ?? ''}
+            onChange={(v) => onPropertyChange('line-height', v)}
+          />
+        </div>
+        <ColorField
+          label="Color"
+          value={values.color ?? ''}
+          onChange={(v) => onPropertyChange('color', v)}
+        />
+      </EditSection>
+
+      <EditSection title="Layout" defaultOpen>
+        <div className="pa-edit-split-fields">
+          <PropertyField
+            compact
+            property="width"
+            label="Width"
+            value={values.width ?? ''}
+            onChange={(v) => onPropertyChange('width', v)}
+          />
+          <PropertyField
+            compact
+            property="height"
+            label="Height"
+            value={values.height ?? ''}
+            onChange={(v) => onPropertyChange('height', v)}
+          />
+        </div>
+        <PropertyField
+          compact
+          property="padding"
+          label="Padding"
+          value={values.padding ?? ''}
+          onChange={(v) => onPropertyChange('padding', v)}
+        />
+        <PropertyField
+          compact
+          property="margin"
+          label="Margin"
+          value={values.margin ?? ''}
+          onChange={(v) => onPropertyChange('margin', v)}
+        />
+        {showGap && (
+          <PropertyField
+            compact
+            property="gap"
+            label="Gap"
+            value={values.gap ?? ''}
+            onChange={(v) => onPropertyChange('gap', v)}
+          />
+        )}
+        {showDisplay && (
+          <label className="pa-edit-stack-field">
+            <span className="pa-edit-field-label">Display</span>
+            <input
+              className="pa-input"
+              type="text"
+              value={values.display ?? ''}
+              onChange={(e) => onPropertyChange('display', e.target.value)}
+              spellCheck={false}
+            />
+          </label>
+        )}
+      </EditSection>
+
+      <EditSection title="Fill">
+        <ColorField
+          label="Background"
+          value={values['background-color'] ?? ''}
+          onChange={(v) => onPropertyChange('background-color', v)}
+        />
+        <PropertyField
+          compact
+          property="opacity"
+          label="Opacity"
+          value={values.opacity ?? ''}
+          onChange={(v) => onPropertyChange('opacity', v)}
+        />
+      </EditSection>
+
+      <EditSection title="Border" defaultOpen>
+        <ColorField
+          label="Border color"
+          value={values['border-color'] ?? ''}
+          onChange={(v) => onPropertyChange('border-color', v)}
+        />
+        <label className="pa-edit-stack-field">
+          <span className="pa-edit-field-label">Style</span>
+          <select
+            className="pa-select"
+            value={borderStyle}
+            onChange={(e) => onPropertyChange('border-style', e.target.value)}
+          >
+            {borderStyleOptions.map((style) => (
+              <option key={style} value={style}>
+                {style}
+              </option>
+            ))}
+          </select>
+        </label>
+        <PropertyField
+          compact
+          property="border-width"
+          label="Stroke width (px)"
+          value={values['border-width'] ?? ''}
+          onChange={(v) => onPropertyChange('border-width', v)}
+        />
+        <PropertyField
+          compact
+          property="border-radius"
+          label="Radius (px)"
+          value={values['border-radius'] ?? ''}
+          onChange={(v) => onPropertyChange('border-radius', v)}
+        />
+      </EditSection>
+    </div>
+  );
+}

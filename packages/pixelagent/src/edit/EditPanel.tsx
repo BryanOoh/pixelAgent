@@ -1,14 +1,19 @@
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import type { ElementState, StyleChange, TargetScope } from '@pixelagent/shared';
 import {
+  countElementInstances,
   detectStylingSystem,
   getCssSelector,
+  getElementDisplayLabel,
+  getPreviewTargets,
+  getScopeSelector,
   readReactSource,
 } from '@pixelagent/shared';
 import { ElementOverlay } from '../annotate/ElementOverlay';
 import { GlassButton, GlassPanel } from '../glass';
 import { useDraggable } from '../hooks/useDraggable';
-import { PropertyField } from './PropertyField';
+import { IconReset, IconUndo } from './EditActionIcons';
+import { EditPropertiesPanel } from './EditPropertiesPanel';
 import type { EditPreviewApi } from './useEditPreview';
 import { useEditPreview } from './useEditPreview';
 
@@ -26,18 +31,6 @@ interface EditPanelProps {
   isToolbarTarget: (target: EventTarget | null) => boolean;
   onPreviewApi?: (api: EditPreviewApi | null) => void;
 }
-
-const EDITABLE_PROPS = [
-  { key: 'padding', label: 'Padding' },
-  { key: 'margin', label: 'Margin' },
-  { key: 'width', label: 'Width' },
-  { key: 'height', label: 'Height' },
-  { key: 'background-color', label: 'Background' },
-  { key: 'color', label: 'Color' },
-  { key: 'font-size', label: 'Font size' },
-  { key: 'border-radius', label: 'Border radius' },
-  { key: 'opacity', label: 'Opacity' },
-] as const;
 
 export function EditPanel({
   selectedElement,
@@ -87,7 +80,9 @@ export function EditPanel({
       const target = elements.find(
         (el) =>
           el instanceof Element &&
-          !el.closest('[data-pixelagent-root],[data-pixelagent-toolbar-portal]')
+          !el.closest(
+            '[data-pixelagent-root],[data-pixelagent-toolbar-portal],[data-pixelagent-picker-portal]'
+          )
       );
       onHoverElement(target ?? null);
     },
@@ -105,7 +100,9 @@ export function EditPanel({
       const target = elements.find(
         (el) =>
           el instanceof Element &&
-          !el.closest('[data-pixelagent-root],[data-pixelagent-toolbar-portal]')
+          !el.closest(
+            '[data-pixelagent-root],[data-pixelagent-toolbar-portal],[data-pixelagent-picker-portal]'
+          )
       );
       onSelectElement(target ?? null);
     },
@@ -128,10 +125,10 @@ export function EditPanel({
 
   const source = selectedElement ? readReactSource(selectedElement) : null;
   const stylingSystem = selectedElement ? detectStylingSystem(selectedElement) : null;
-  const affectedCount =
-    selectedElement && targetScope === 'all-instances'
-      ? document.querySelectorAll(getCssSelector(selectedElement)).length
-      : 1;
+  const instanceCount = selectedElement ? countElementInstances(selectedElement) : 0;
+  const scopeSelector = selectedElement
+    ? getScopeSelector(selectedElement, 'all-instances')
+    : '';
 
   const stateHint =
     elementState !== 'normal' && stylingSystem === 'tailwind'
@@ -140,9 +137,28 @@ export function EditPanel({
         ? 'State preview uses focus/disabled simulation where possible.'
         : null;
 
+  const scopeHint =
+    instanceCount > 1
+      ? targetScope === 'all-instances'
+        ? `Preview & Apply on ${instanceCount} elements (${scopeSelector}).`
+        : `This instance only — ${instanceCount - 1} other on page.`
+      : targetScope === 'all-instances'
+        ? 'Only one match — scope has no effect.'
+        : null;
+
+  const scopeMatchedElements = useMemo(() => {
+    if (!selectedElement || targetScope !== 'all-instances') return [];
+    return getPreviewTargets(selectedElement, 'all-instances');
+  }, [selectedElement, targetScope]);
+
   return (
     <>
-      <ElementOverlay element={hoveredElement} selected={selectedElement} />
+      <ElementOverlay
+        element={targetScope === 'all-instances' ? null : hoveredElement}
+        selected={selectedElement}
+        multiSelected={scopeMatchedElements}
+        primarySelected={selectedElement}
+      />
 
       <div
         ref={panelRef}
@@ -150,129 +166,101 @@ export function EditPanel({
         style={style}
       >
         <GlassPanel variant="sheet" side="right" className="pa-edit-panel-glass">
-          <div className="pa-edit-panel-header">
-            <button
-              type="button"
-              className="pa-edit-panel-drag"
-              aria-label="Drag edit panel"
-              title="Drag to move"
-              {...dragHandleProps}
-            >
-              <span className="pa-edit-panel-grip" aria-hidden="true">
-                <span /><span /><span /><span /><span /><span />
-              </span>
-            </button>
-            <h3 className="pa-edit-title">Edit panel</h3>
-          </div>
-
-          {!selectedElement ? (
-            <p className="pa-edit-hint">Click an element to edit its text and styles.</p>
-          ) : (
-            <>
-              <div className="pa-edit-meta">
-                <code>{getCssSelector(selectedElement)}</code>
-                {(source?.sourceFile || stylingSystem) && (
-                  <span className="pa-edit-source">
-                    {source?.sourceFile && (
-                      <>
-                        {source.sourceFile}
-                        {source.lineNumber ? `:${source.lineNumber}` : ''}
-                      </>
-                    )}
-                    {source?.sourceFile && stylingSystem ? ' · ' : ''}
-                    {stylingSystem ?? ''}
-                  </span>
-                )}
-              </div>
-
-              <div className="pa-edit-controls">
-                <label className="pa-label">
-                  Scope
-                  <select
-                    className="pa-select"
-                    value={targetScope}
-                    onChange={(e) =>
-                      onTargetScopeChange(e.target.value as TargetScope)
-                    }
-                  >
-                    <option value="this-instance">This instance</option>
-                    <option value="all-instances">
-                      All instances ({affectedCount})
-                    </option>
-                  </select>
-                </label>
-
-                <label className="pa-label">
-                  State
-                  <select
-                    className="pa-select"
-                    value={elementState}
-                    onChange={(e) =>
-                      onElementStateChange(e.target.value as ElementState)
-                    }
-                  >
-                    <option value="normal">Normal</option>
-                    <option value="hover">Hover</option>
-                    <option value="focus">Focus</option>
-                    <option value="active">Active</option>
-                    <option value="disabled">Disabled</option>
-                  </select>
-                </label>
-              </div>
-
-              {stateHint && <p className="pa-edit-state-hint">{stateHint}</p>}
-
-              {textKind !== 'none' && (
-                <div className="pa-edit-text-section">
-                  <label className="pa-label">
-                    Text
-                    <textarea
-                      className="pa-textarea pa-edit-text-input"
-                      value={textValue}
-                      onChange={(e) => updateText(e.target.value)}
-                      rows={textKind === 'value' ? 2 : 3}
-                      placeholder="Edit visible text…"
-                    />
-                  </label>
-                </div>
-              )}
-
-              <div className="pa-edit-props">
-                {EDITABLE_PROPS.map(({ key, label }) => (
-                  <PropertyField
-                    key={key}
-                    property={key}
-                    label={label}
-                    value={values[key] ?? ''}
-                    onChange={(v) => updateProperty(key, v)}
-                  />
-                ))}
-              </div>
-
-              <div className="pa-edit-actions">
-                <GlassButton variant="regular" onClick={undo} disabled={!canUndo}>
-                  Undo
-                </GlassButton>
-                <GlassButton variant="regular" onClick={reset} disabled={pendingChanges.length === 0}>
-                  Reset
-                </GlassButton>
-              </div>
-
-              <div className="pa-edit-footer">
-                <span className="pa-change-count">
-                  {applyStatus ??
-                    `${pendingChanges.length} pending change${pendingChanges.length !== 1 ? 's' : ''}`}
+          <div className="pa-edit-panel-inner">
+            <div className="pa-edit-panel-header">
+              <button
+                type="button"
+                className="pa-edit-panel-drag"
+                aria-label="Drag edit panel"
+                title="Drag to move"
+                {...dragHandleProps}
+              >
+                <span className="pa-edit-panel-grip" aria-hidden="true">
+                  <span /><span /><span /><span /><span /><span />
                 </span>
-                <GlassButton
-                  variant="glass-primary"
-                  onClick={handleApply}
-                  disabled={pendingChanges.length === 0 || !source?.sourceFile}
-                >
-                  Apply
-                </GlassButton>
-              </div>
-            </>
-          )}
+              </button>
+              <h3 className="pa-edit-title">Edit</h3>
+            </div>
+
+            {!selectedElement ? (
+              <p className="pa-edit-hint">Click an element to edit its text and styles.</p>
+            ) : (
+              <>
+                <div className="pa-edit-meta">
+                  <code
+                    className="pa-edit-meta-label"
+                    title={`This instance: ${getCssSelector(selectedElement)}\nAll instances: ${scopeSelector}`}
+                  >
+                    {getElementDisplayLabel(selectedElement)}
+                  </code>
+                  {(source?.sourceFile || stylingSystem) && (
+                    <span className="pa-edit-source">
+                      {source?.sourceFile && (
+                        <>
+                          {source.sourceFile}
+                          {source.lineNumber ? `:${source.lineNumber}` : ''}
+                        </>
+                      )}
+                      {source?.sourceFile && stylingSystem ? ' · ' : ''}
+                      {stylingSystem ?? ''}
+                    </span>
+                  )}
+                </div>
+
+                <div className="pa-edit-panel-scroll">
+                  <EditPropertiesPanel
+                    values={values}
+                    onPropertyChange={updateProperty}
+                    textKind={textKind}
+                    textValue={textValue}
+                    onTextChange={updateText}
+                    targetScope={targetScope}
+                    onTargetScopeChange={onTargetScopeChange}
+                    elementState={elementState}
+                    onElementStateChange={onElementStateChange}
+                    instanceCount={instanceCount}
+                    scopeHint={scopeHint}
+                    stateHint={stateHint}
+                  />
+                </div>
+
+                <div className="pa-edit-panel-sticky">
+                  <div className="pa-edit-actions">
+                    <GlassButton variant="regular" onClick={undo} disabled={!canUndo}>
+                      <span className="pa-glass-btn-inner">
+                        <IconUndo className="pa-glass-btn-icon" />
+                        <span>Undo</span>
+                      </span>
+                    </GlassButton>
+                    <GlassButton
+                      variant="regular"
+                      onClick={reset}
+                      disabled={pendingChanges.length === 0}
+                    >
+                      <span className="pa-glass-btn-inner">
+                        <IconReset className="pa-glass-btn-icon" />
+                        <span>Reset</span>
+                      </span>
+                    </GlassButton>
+                  </div>
+
+                  <div className="pa-edit-footer">
+                    <span className="pa-change-count">
+                      {applyStatus ??
+                        `${pendingChanges.length} pending change${pendingChanges.length !== 1 ? 's' : ''}`}
+                    </span>
+                    <GlassButton
+                      variant="glass-primary"
+                      onClick={handleApply}
+                      disabled={pendingChanges.length === 0 || !source?.sourceFile}
+                    >
+                      Apply
+                    </GlassButton>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
         </GlassPanel>
       </div>
     </>

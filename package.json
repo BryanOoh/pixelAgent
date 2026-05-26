@@ -9,6 +9,7 @@
     "dev": "npm run dev -w @pixelagent/demo",
     "test": "npm run test --workspaces --if-present",
     "test:e2e": "npm run test -w @pixelagent/mcp",
+    "test:e2e:annotate": "playwright test e2e/annotate-golden-path.spec.ts",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "clean": "rm -rf packages/*/dist node_modules",
     "pack:check": "node scripts/pack-check.mjs",

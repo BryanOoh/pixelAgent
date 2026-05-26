@@ -1,5 +1,5 @@
 import type { ElementState, TargetScope } from './types.js';
-import { getCssSelector } from './dom.js';
+import { getAllInstancesSelector } from './dom.js';
 
 export const PA_PREVIEW_CLASSES_ATTR = 'data-pa-preview-classes';
 export const PA_PREVIEW_DISABLED_CLASS = 'pa-preview-disabled';
@@ -16,7 +16,7 @@ export function getPreviewTargets(element: Element, scope: TargetScope): HTMLEle
   if (scope === 'this-instance') {
     return [element as HTMLElement];
   }
-  const selector = getCssSelector(element, { disambiguate: false });
+  const selector = getAllInstancesSelector(element);
   try {
     return Array.from(document.querySelectorAll(selector)).filter(
       (el): el is HTMLElement => el instanceof HTMLElement

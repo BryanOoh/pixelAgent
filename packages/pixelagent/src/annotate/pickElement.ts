@@ -1,4 +1,5 @@
-export const PA_OWN_SELECTOR = '[data-pixelagent-root],[data-pixelagent-toolbar-portal]';
+export const PA_OWN_SELECTOR =
+  '[data-pixelagent-root],[data-pixelagent-toolbar-portal],[data-pixelagent-picker-portal]';
 
 export function isPixelAgentElement(target: EventTarget | null): boolean {
   if (!(target instanceof Element)) return false;

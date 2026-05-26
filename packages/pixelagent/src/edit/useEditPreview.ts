@@ -15,17 +15,29 @@ import {
   type TextEditKind,
   type TextSnapshot,
 } from '@pixelagent/shared';
+import { hasPositiveBorderWidth } from './propertyControls.js';
 
 const MAX_UNDO = 50;
 
 const STYLE_PROP_KEYS = [
+  'font-family',
+  'font-size',
+  'font-weight',
+  'font-style',
+  'line-height',
+  'text-align',
+  'text-decoration',
+  'color',
+  'background-color',
   'padding',
   'margin',
   'width',
   'height',
-  'background-color',
-  'color',
-  'font-size',
+  'gap',
+  'display',
+  'border-width',
+  'border-style',
+  'border-color',
   'border-radius',
   'opacity',
 ] as const;
@@ -180,16 +192,28 @@ export function useEditPreview(
   const updateProperty = useCallback(
     (property: string, newValue: string) => {
       if (!selectedElement) return;
-      pushUndo();
-      const oldValue = originalValues[property] ?? '';
-      for (const el of targetsRef.current) {
-        el.style.setProperty(property, newValue);
-        touchedRef.current.add(el);
+
+      const batch: Record<string, string> = { [property]: newValue };
+      if (
+        property === 'border-width' &&
+        (values['border-style'] ?? 'none') === 'none' &&
+        hasPositiveBorderWidth(newValue)
+      ) {
+        batch['border-style'] = 'solid';
       }
-      setValues((prev) => ({ ...prev, [property]: newValue }));
-      upsertChange(property, oldValue, newValue);
+
+      pushUndo();
+      setValues((prev) => ({ ...prev, ...batch }));
+      for (const [prop, val] of Object.entries(batch)) {
+        const oldValue = originalValues[prop] ?? '';
+        for (const el of targetsRef.current) {
+          el.style.setProperty(prop, val);
+          touchedRef.current.add(el);
+        }
+        upsertChange(prop, oldValue, val);
+      }
     },
-    [selectedElement, originalValues, pushUndo, upsertChange]
+    [selectedElement, originalValues, values, pushUndo, upsertChange]
   );
 
   const updateText = useCallback(

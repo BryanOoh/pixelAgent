@@ -1,9 +1,11 @@
 /** @vitest-environment jsdom */
 import { describe, expect, it } from 'vitest';
 import {
+  countElementInstances,
   formatAnnotation,
   formatAllAnnotations,
   elementFromDomPath,
+  getAllInstancesSelector,
   getElementDisplayLabel,
   getAnnotationSessionDisplay,
   shortenSelectorForDisplay,
@@ -68,6 +70,22 @@ describe('formatAllAnnotations', () => {
     };
     const result = formatAllAnnotations([entry]);
     expect(result).toContain('- **source:** `components/Hero.tsx:42`');
+  });
+});
+
+describe('getAllInstancesSelector / countElementInstances', () => {
+  it('counts every element with the same semantic class', () => {
+    document.body.innerHTML = `
+      <nav>
+        <a class="site-nav-link" href="#">Work</a>
+        <a class="site-nav-link" href="#">About</a>
+        <a class="site-nav-link" href="#">Contact</a>
+      </nav>
+    `;
+    const links = document.querySelectorAll('.site-nav-link');
+    expect(links.length).toBe(3);
+    expect(countElementInstances(links[0])).toBe(3);
+    expect(getAllInstancesSelector(links[0])).toBe('a.site-nav-link');
   });
 });
 

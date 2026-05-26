@@ -1,14 +1,22 @@
-import type { AnnotationEntry } from './types.js';
+import type { AnnotationEntry, TargetScope } from './types.js';
 
 const RELEVANT_STYLE_PROPS = [
+  'font-family',
   'font-size',
   'font-weight',
+  'font-style',
+  'line-height',
+  'text-align',
+  'text-decoration',
   'color',
   'background-color',
   'padding',
   'margin',
   'width',
   'height',
+  'border-width',
+  'border-style',
+  'border-color',
   'border-radius',
   'opacity',
   'display',
@@ -69,6 +77,53 @@ export function getCssSelector(element: Element, options: CssSelectorOptions = {
   }
 
   return parts.join(' > ');
+}
+
+/**
+ * Short selector matching every DOM instance that shares the element's tag + semantic classes.
+ * Used for all-instances preview count and querySelectorAll (e.g. all `a.site-nav-link` in nav).
+ */
+export function getAllInstancesSelector(element: Element): string {
+  if (element.id) {
+    return `#${escapeCssIdent(element.id)}`;
+  }
+
+  const testId = element.getAttribute('data-testid');
+  if (testId) {
+    return `[data-testid="${escapeCssIdent(testId)}"]`;
+  }
+
+  const tag = element.tagName.toLowerCase();
+  const semanticClasses = Array.from(element.classList).filter(
+    (c) => !INTERNAL_CLASS_RE.test(c) && !isUtilityClass(c)
+  );
+
+  if (semanticClasses.length > 0) {
+    return (
+      tag + semanticClasses.slice(0, 4).map((c) => `.${escapeCssIdent(c)}`).join('')
+    );
+  }
+
+  return getCssSelector(element, { disambiguate: false });
+}
+
+/** How many elements on the page match {@link getAllInstancesSelector}. */
+export function countElementInstances(element: Element): number {
+  if (typeof document === 'undefined') return 1;
+  const selector = getAllInstancesSelector(element);
+  try {
+    return document.querySelectorAll(selector).length;
+  } catch {
+    return 1;
+  }
+}
+
+/** Selector stored in Apply payload and used for scope-aware matching. */
+export function getScopeSelector(element: Element, scope: TargetScope): string {
+  if (scope === 'this-instance') {
+    return getCssSelector(element, { disambiguate: true });
+  }
+  return getAllInstancesSelector(element);
 }
 
 const TAILWIND_CLASS_RE =

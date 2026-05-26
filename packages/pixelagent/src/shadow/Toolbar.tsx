@@ -138,9 +138,13 @@ export function Toolbar({
                         variant="glass-primary"
                         onClick={onCopyAll}
                         disabled={annotationCount === 0}
-                        aria-label="Copy all annotations"
+                        aria-label={
+                          annotationCount > 0
+                            ? `Copy all annotations (${annotationCount})`
+                            : 'Copy all annotations'
+                        }
                       >
-                        Copy
+                        {annotationCount > 0 ? `Copy (${annotationCount})` : 'Copy'}
                       </GlassButton>
                     </CopyFeedbackSlot>
                   </>
