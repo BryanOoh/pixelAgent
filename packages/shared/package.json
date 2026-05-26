@@ -8,12 +8,12 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/pixelagent/pixelagent.git",
+    "url": "git+https://github.com/BryanOoh/pixelAgent.git",
     "directory": "packages/shared"
   },
-  "homepage": "https://github.com/pixelagent/pixelagent#readme",
+  "homepage": "https://github.com/BryanOoh/pixelAgent#readme",
   "bugs": {
-    "url": "https://github.com/pixelagent/pixelagent/issues"
+    "url": "https://github.com/BryanOoh/pixelAgent/issues"
   },
   "keywords": ["pixelagent", "dom", "design-tools", "react"],
   "type": "module",
