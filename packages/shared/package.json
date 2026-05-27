@@ -1,6 +1,6 @@
 {
   "name": "@pixelagent/shared",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "Shared types and DOM utilities for PixelAgent",
   "license": "MIT",
   "publishConfig": {

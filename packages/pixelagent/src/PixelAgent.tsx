@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type {
   AnnotateCaptureMode,
   ApplyPayload,
+  ApplyVisualDiffResult,
   ElementState,
   HostTheme,
   PixelAgentUiSettings,
@@ -18,6 +19,7 @@ import {
   readReactSource,
 } from '@pixelagent/shared';
 import { EditPanel } from './edit/EditPanel';
+import { formatApplyFeedback, submitApply } from './edit/submitApply';
 import { AnnotationPopover } from './annotate/AnnotationPopover';
 import { AreaSelectOverlay } from './annotate/AreaSelectOverlay';
 import { buildAnnotationEntry } from './annotate/buildAnnotationEntry';
@@ -38,7 +40,17 @@ export interface PixelAgentProps {
   /** Controlled host page theme (e.g. demo `data-theme`). */
   hostTheme?: HostTheme;
   onHostThemeChange?: (theme: HostTheme) => void;
+  /**
+   * Explicit POST endpoint for Apply. When unset, the component auto-probes
+   * the standard Vite plugin path (`/__pixelagent/apply`) at mount; if that
+   * fails it falls back to clipboard.
+   */
+  applyEndpoint?: string;
+  /** Custom transport. Takes precedence over `applyEndpoint`. */
+  onApply?: (payload: ApplyPayload) => Promise<ApplyVisualDiffResult | null>;
 }
+
+const AUTO_APPLY_PATH = '/__pixelagent/apply';
 
 interface AreaDragState {
   startX: number;
@@ -60,8 +72,32 @@ function normalizeAreaRect(drag: AreaDragState) {
   return { x, y, width, height };
 }
 
-export function PixelAgent({ ui, hostTheme, onHostThemeChange }: PixelAgentProps = {}) {
+export function PixelAgent({
+  ui,
+  hostTheme,
+  onHostThemeChange,
+  applyEndpoint,
+  onApply,
+}: PixelAgentProps = {}) {
   const pixelAgentUi = usePixelAgentUi({ ui, hostTheme, onHostThemeChange });
+  const [autoEndpoint, setAutoEndpoint] = useState<string | null>(null);
+
+  // Auto-probe the Vite plugin endpoint. The plugin returns 405 for non-POST,
+  // which uniquely confirms the middleware is mounted. 404 / network error → skip.
+  useEffect(() => {
+    if (applyEndpoint || onApply) return;
+    let cancelled = false;
+    fetch(AUTO_APPLY_PATH, { method: 'GET' })
+      .then((res) => {
+        if (!cancelled && res.status === 405) setAutoEndpoint(AUTO_APPLY_PATH);
+      })
+      .catch(() => {
+        /* no plugin — clipboard fallback */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [applyEndpoint, onApply]);
   const [active, setActive] = useState(false);
   const [mode, setMode] = useState<PixelAgentMode>('idle');
   const [captureMode, setCaptureMode] = useState<AnnotateCaptureMode>('element');
@@ -295,9 +331,21 @@ export function PixelAgent({ ui, hostTheme, onHostThemeChange }: PixelAgentProps
         changes,
       };
 
-      await copyText(JSON.stringify(payload, null, 2), 'Apply payload copied!');
+      const transport = await submitApply(payload, {
+        applyEndpoint: applyEndpoint ?? autoEndpoint ?? undefined,
+        onApply,
+      });
+      showCopyStatus(formatApplyFeedback(transport));
     },
-    [selectedElement, targetScope, elementState, copyText]
+    [
+      selectedElement,
+      targetScope,
+      elementState,
+      applyEndpoint,
+      autoEndpoint,
+      onApply,
+      showCopyStatus,
+    ]
   );
 
   const activateMode = (nextMode: PixelAgentMode) => {
