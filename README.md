@@ -50,7 +50,7 @@ npx pixelagent setup
 3. Session opens on the right; click toolbar **Copy** or session **Copy all** (same markdown).
 4. Paste into your agent chat.
 
-No verbosity or viewport toggles — context is included automatically. See [`docs/annotate.md`](docs/annotate.md) and [`docs/testing-annotate.md`](docs/testing-annotate.md).
+No verbosity or viewport toggles — context is included automatically.
 
 In your app:
 
@@ -72,15 +72,6 @@ export default function Layout({ children }) {
 
 ```
 pixelAgent/
-├── CLAUDE.md              # Team instructions
-├── CLAUDE.local.md        # Personal overrides (gitignored)
-├── design.md              # PRD v0.4 design document
-├── .claude/
-│   ├── settings.json
-│   ├── commands/          # /project:review, fix-issue, deploy
-│   ├── rules/             # code-style, testing, api-conventions
-│   ├── skills/            # security-review, deploy
-│   └── agents/            # code-reviewer, security-auditor
 └── packages/
     ├── shared/            # @pixelagent/shared — types & DOM utilities
     ├── pixelagent/        # React component
@@ -96,13 +87,6 @@ pixelAgent/
 | `pixelagent` | React component — Shadow DOM toolbar, annotate + edit panel |
 | `@pixelagent/mcp` | Local MCP server — apply diffs, resolve elements, read design tokens |
 | CLI | `npx pixelagent setup` — configure MCP for Claude Code / Cursor |
-
-## Docs
-
-- [Design document](./design.md) — architecture, user stories, roadmap
-- [Annotate product notes](./docs/annotate.md) — UX decisions (e.g. toolbar + session Copy)
-- [Annotate testing](./docs/testing-annotate.md) — golden path manual + E2E
-- [Team instructions](./CLAUDE.md) — development workflow
 
 ## License
 
