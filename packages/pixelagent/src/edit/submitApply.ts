@@ -48,22 +48,29 @@ export async function submitApply(
   return { mode: 'clipboard' };
 }
 
+/**
+ * Two outcomes only: applied or failed. Anything that didn't actually write
+ * source (errors, clipboard fallback, partial-success without lines changed)
+ * collapses to "Apply failed". Detail goes to the console for debugging.
+ */
 export function formatApplyFeedback(transport: ApplyTransportResult): string {
-  if (transport.mode === 'clipboard') {
-    return 'Apply payload copied — paste into your agent or MCP';
+  if (
+    transport.mode === 'mcp' &&
+    transport.result.success &&
+    transport.result.linesChanged.length > 0
+  ) {
+    if (transport.result.warnings?.length) {
+      console.warn('[pixelagent] Apply succeeded with warnings:', transport.result.warnings);
+    }
+    return 'Change applied';
   }
+
   if (transport.mode === 'error') {
-    return `Apply failed: ${transport.message}`;
+    console.error('[pixelagent] Apply failed:', transport.message);
+  } else if (transport.mode === 'mcp') {
+    console.warn('[pixelagent] Apply reported no changes:', transport.result);
+  } else {
+    console.warn('[pixelagent] Apply fell back to clipboard — no source patched');
   }
-
-  const { result } = transport;
-  if (result.success) {
-    const lines =
-      result.linesChanged.length > 0 ? `lines ${result.linesChanged.join(', ')}` : 'file updated';
-    const warn = result.warnings?.length ? ` · ${result.warnings.length} warning(s)` : '';
-    return `Patched ${result.patchedFile} (${lines})${warn}`;
-  }
-
-  const warn = result.warnings?.join('; ') ?? 'no changes written';
-  return `Apply completed with warnings: ${warn}`;
+  return 'Apply failed';
 }

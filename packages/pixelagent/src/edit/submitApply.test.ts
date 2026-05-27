@@ -67,19 +67,38 @@ describe('submitApply', () => {
 });
 
 describe('formatApplyFeedback', () => {
-  it('summarizes a successful mcp result', () => {
-    const msg = formatApplyFeedback({
-      mode: 'mcp',
-      result: { success: true, patchedFile: 'src/App.tsx', linesChanged: [12, 13] },
-    });
-    expect(msg).toContain('src/App.tsx');
+  it('returns "Change applied" on a successful patch with lines changed', () => {
+    expect(
+      formatApplyFeedback({
+        mode: 'mcp',
+        result: { success: true, patchedFile: 'src/App.tsx', linesChanged: [12, 13] },
+      })
+    ).toBe('Change applied');
   });
 
-  it('describes clipboard fallback', () => {
-    expect(formatApplyFeedback({ mode: 'clipboard' })).toMatch(/copied|paste/i);
+  it('returns "Apply failed" for clipboard fallback', () => {
+    expect(formatApplyFeedback({ mode: 'clipboard' })).toBe('Apply failed');
   });
 
-  it('surfaces error messages', () => {
-    expect(formatApplyFeedback({ mode: 'error', message: 'boom' })).toContain('boom');
+  it('returns "Apply failed" for transport errors', () => {
+    expect(formatApplyFeedback({ mode: 'error', message: 'boom' })).toBe('Apply failed');
+  });
+
+  it('returns "Apply failed" when result.success is false', () => {
+    expect(
+      formatApplyFeedback({
+        mode: 'mcp',
+        result: { success: false, patchedFile: 'src/App.tsx', linesChanged: [], warnings: ['x'] },
+      })
+    ).toBe('Apply failed');
+  });
+
+  it('returns "Apply failed" when no lines were actually changed', () => {
+    expect(
+      formatApplyFeedback({
+        mode: 'mcp',
+        result: { success: true, patchedFile: 'src/App.tsx', linesChanged: [] },
+      })
+    ).toBe('Apply failed');
   });
 });

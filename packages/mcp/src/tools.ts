@@ -224,28 +224,43 @@ function patchValueAttribute(
   return { line, warning: `Could not locate value attribute` };
 }
 
-function patchInlineStyle(
+export function patchInlineStyle(
   line: string,
   property: string,
   newValue: string
 ): { line: string; warning?: string } {
+  const camel = property.replace(/-([a-z])/g, (_, c: string) => c.toUpperCase());
   const styleRegex = /style=\{\{([^}]*)\}\}/;
-  if (!styleRegex.test(line)) {
-    return { line, warning: `No inline style block found for ${property}` };
+
+  // Existing style block: update or append the property in place.
+  if (styleRegex.test(line)) {
+    const updated = line.replace(styleRegex, (_match, inner) => {
+      const trimmed = inner.trim();
+      if (trimmed.includes(`${camel}:`)) {
+        return `style={{${trimmed.replace(
+          new RegExp(`${camel}:\\s*['"][^'"]*['"]`),
+          `${camel}: '${newValue}'`
+        )}}}`;
+      }
+      const separator = trimmed ? `${trimmed}, ` : '';
+      return `style={{${separator}${camel}: '${newValue}'}}`;
+    });
+    return { line: updated };
   }
-  const updated = line.replace(styleRegex, (_match, inner) => {
-    const trimmed = inner.trim();
-    const camel = property.replace(/-([a-z])/g, (_, c: string) => c.toUpperCase());
-    if (trimmed.includes(`${camel}:`)) {
-      return `style={{${trimmed.replace(
-        new RegExp(`${camel}:\\s*['"][^'"]*['"]`),
-        `${camel}: '${newValue}'`
-      )}}}`;
-    }
-    const separator = trimmed ? `${trimmed}, ` : '';
-    return `style={{${separator}${camel}: '${newValue}'}}`;
-  });
-  return { line: updated };
+
+  // No style block — inject one into the JSX opening tag on this line.
+  // Matches `<Tag ...>` or `<Tag ... />` so we can splice the attribute in
+  // before the closing `>`, preserving self-closing form.
+  const tagRegex = /<([A-Za-z][\w.]*)\b([^>]*?)(\s*\/?)>/;
+  if (tagRegex.test(line)) {
+    const updated = line.replace(
+      tagRegex,
+      (_m, tag, attrs, close) => `<${tag}${attrs} style={{ ${camel}: '${newValue}' }}${close}>`
+    );
+    return { line: updated };
+  }
+
+  return { line, warning: `Could not locate JSX tag for ${property} on this line` };
 }
 
 async function findInSourceFiles(
