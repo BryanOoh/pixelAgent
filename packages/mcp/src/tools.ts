@@ -66,6 +66,15 @@ export async function applyVisualDiff(
     }
 
     if (payload.stylingSystem === 'inline') {
+      // CSS inline styles can't express :hover/:focus/:active/:disabled.
+      // Refuse rather than silently writing the value to the normal state,
+      // which would make the element render the "hover" value at rest.
+      if (payload.state !== 'normal') {
+        warnings.push(
+          `${payload.state} state requires a CSS class — inline style cannot express :${payload.state} for ${property}`
+        );
+        continue;
+      }
       const result = patchInlineStyle(line, property, newValue);
       line = result.line;
       if (result.warning) warnings.push(`${result.warning} on line ${payload.lineNumber}`);
