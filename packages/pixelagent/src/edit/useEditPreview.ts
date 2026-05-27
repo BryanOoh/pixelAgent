@@ -206,6 +206,17 @@ export function useEditPreview(
       }
     }
 
+    // Reset the panel display to baseline overlaid with whatever the new
+    // state has pending. Otherwise an edit made in Hover keeps showing in
+    // the Normal field after the state toggle, even though the DOM is
+    // already back to its resting style.
+    const nextValues: Record<string, string> = { ...originalValues };
+    for (const change of pendingForState) {
+      if (change.property === 'textContent' || change.property === 'value') continue;
+      nextValues[change.property] = change.newValue;
+    }
+    setValues(nextValues);
+
     clearTailwindStatePreview(Array.from(touchedRef.current));
     applyTailwindStatePreview(targets, elementState);
     touchedRef.current = new Set(targets);
