@@ -3,6 +3,7 @@ import { ColorField } from './ColorField';
 import { EditSection } from './EditSection';
 import { FontFamilySelect } from './FontFamilySelect';
 import { PropertyField } from './PropertyField';
+import { SpacingField } from './SpacingField';
 import { MultiSegmentedControl, SegmentedControl } from './SegmentedControl';
 import {
   IconAlignCenter,
@@ -33,6 +34,20 @@ const BORDER_STYLE_OPTIONS = [
   'inset',
   'outset',
 ] as const;
+
+const DISPLAY_OPTIONS = [
+  'block',
+  'inline',
+  'inline-block',
+  'flex',
+  'inline-flex',
+  'grid',
+  'inline-grid',
+  'none',
+  'contents',
+] as const;
+
+const FLEX_GRID_DISPLAYS = new Set(['flex', 'inline-flex', 'grid', 'inline-grid']);
 
 export interface EditPropertiesPanelProps {
   values: Record<string, string>;
@@ -68,8 +83,18 @@ export function EditPropertiesPanel({
   const textDecoration = values['text-decoration'] ?? 'none';
   const textAlign = normalizeTextAlign(values['text-align'] ?? 'left');
 
-  const showGap = Boolean(values.gap?.trim());
-  const showDisplay = Boolean(values.display?.trim());
+  const displayValue = values.display?.trim() ?? '';
+  const showDisplay = Boolean(displayValue);
+  const showGap = FLEX_GRID_DISPLAYS.has(displayValue);
+  const displayOptions: string[] = [...DISPLAY_OPTIONS];
+  if (
+    displayValue &&
+    !DISPLAY_OPTIONS.includes(displayValue as (typeof DISPLAY_OPTIONS)[number])
+  ) {
+    displayOptions.push(displayValue);
+  }
+  const rawGap = values.gap?.trim() ?? '';
+  const gapValue = rawGap === 'normal' || rawGap === '' ? '0px' : rawGap;
   const borderStyle = values['border-style'] ?? 'none';
   const borderStyleOptions: string[] = [...BORDER_STYLE_OPTIONS];
   if (
@@ -257,40 +282,42 @@ export function EditPropertiesPanel({
             onChange={(v) => onPropertyChange('height', v)}
           />
         </div>
-        <PropertyField
-          compact
+        <SpacingField
           property="padding"
           label="Padding"
           value={values.padding ?? ''}
           onChange={(v) => onPropertyChange('padding', v)}
         />
-        <PropertyField
-          compact
+        <SpacingField
           property="margin"
           label="Margin"
           value={values.margin ?? ''}
           onChange={(v) => onPropertyChange('margin', v)}
         />
+        {showDisplay && (
+          <label className="pa-prop-row pa-prop-row--compact">
+            <span className="pa-edit-field-label">Display</span>
+            <select
+              className="pa-select"
+              value={displayValue}
+              onChange={(e) => onPropertyChange('display', e.target.value)}
+            >
+              {displayOptions.map((opt) => (
+                <option key={opt} value={opt}>
+                  {opt}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
         {showGap && (
           <PropertyField
             compact
             property="gap"
             label="Gap"
-            value={values.gap ?? ''}
+            value={gapValue}
             onChange={(v) => onPropertyChange('gap', v)}
           />
-        )}
-        {showDisplay && (
-          <label className="pa-edit-stack-field">
-            <span className="pa-edit-field-label">Display</span>
-            <input
-              className="pa-input"
-              type="text"
-              value={values.display ?? ''}
-              onChange={(e) => onPropertyChange('display', e.target.value)}
-              spellCheck={false}
-            />
-          </label>
         )}
       </EditSection>
 
