@@ -1,5 +1,5 @@
 import { readdir, readFile, writeFile } from 'node:fs/promises';
-import { join, relative, extname } from 'node:path';
+import { basename, dirname, extname, join, relative } from 'node:path';
 import type {
   ApplyPayload,
   ApplyVisualDiffResult,
@@ -33,8 +33,10 @@ export async function applyVisualDiff(
     throw new Error(`PATCH_CONFLICT: Cannot patch line ${payload.lineNumber ?? 'unknown'}`);
   }
 
-  const lineIndex = payload.lineNumber - 1;
+  let lineIndex = payload.lineNumber - 1;
   let line = lines[lineIndex];
+
+  const sidecarFiles = new Set<string>();
 
   const patchCtx: PatchContext = {
     state: payload.state,
@@ -66,18 +68,36 @@ export async function applyVisualDiff(
     }
 
     if (payload.stylingSystem === 'inline') {
-      // CSS inline styles can't express :hover/:focus/:active/:disabled.
-      // Refuse rather than silently writing the value to the normal state,
-      // which would make the element render the "hover" value at rest.
       if (payload.state !== 'normal') {
-        warnings.push(
-          `${payload.state} state requires a CSS class — inline style cannot express :${payload.state} for ${property}`
-        );
+        // Inline can't express :hover/:focus/etc., so route the change to a
+        // sibling sidecar CSS file and attach a stable class to the element.
+        const existing = findExistingPaClass(line);
+        const className = existing ?? generatePaClassName(payload.sourceFile, lineIndex + 1);
+
+        if (!existing) {
+          const classResult = addClassNameToJsxLine(line, className);
+          if (classResult.warning) {
+            warnings.push(`${classResult.warning} on line ${lineIndex + 1}`);
+            continue;
+          }
+          line = classResult.line;
+        }
+
+        const importAdded = ensureSidecarImport(lines, `./${SIDECAR_FILENAME}`);
+        if (importAdded) {
+          // Source line just shifted down by one; keep our cursor on the
+          // element so subsequent changes patch the right row.
+          lineIndex += 1;
+        }
+
+        const sidecarPath = join(dirname(filePath), SIDECAR_FILENAME);
+        await upsertStateCssRule(sidecarPath, className, payload.state, property, newValue);
+        sidecarFiles.add(sidecarPath);
         continue;
       }
       const result = patchInlineStyle(line, property, newValue);
       line = result.line;
-      if (result.warning) warnings.push(`${result.warning} on line ${payload.lineNumber}`);
+      if (result.warning) warnings.push(`${result.warning} on line ${lineIndex + 1}`);
       continue;
     }
 
@@ -158,10 +178,11 @@ export async function applyVisualDiff(
     }
   }
 
+  const sidecarUsed = sidecarFiles.size > 0;
   return {
-    success: sourceChanged,
+    success: sourceChanged || sidecarUsed,
     patchedFile: payload.sourceFile,
-    linesChanged: sourceLinesChanged,
+    linesChanged: sourceLinesChanged.length > 0 ? sourceLinesChanged : sidecarUsed ? [lineIndex + 1] : [],
     warnings: warnings.length > 0 ? warnings : undefined,
   };
 }
@@ -231,6 +252,117 @@ function patchValueAttribute(
     return { line: line.replace(/value="[^"]*"/, `value="${newValue}"`) };
   }
   return { line, warning: `Could not locate value attribute` };
+}
+
+// ── Inline + pseudo-state via sidecar CSS file ──────────────────────────
+//
+// Inline `style={{}}` can't express :hover/:focus/:active/:disabled. To make
+// state edits land in source, we:
+//   1. Generate (or reuse) a stable `pa-<basename>-<line>` className on the JSX tag.
+//   2. Ensure `pixelagent-styles.css` exists as a sibling of the source file
+//      and is imported from it.
+//   3. Upsert a CSS rule `.pa-...:state { property: value; }` in that sidecar.
+// Subsequent Applies on the same element reuse the existing `pa-*` class so
+// new properties get added to the same rule instead of orphaning the old one.
+
+const SIDECAR_FILENAME = 'pixelagent-styles.css';
+
+export function generatePaClassName(sourceFile: string, lineNumber: number): string {
+  const base = basename(sourceFile, extname(sourceFile)).replace(/[^A-Za-z0-9_-]/g, '');
+  return `pa-${base || 'el'}-${lineNumber}`;
+}
+
+export function findExistingPaClass(line: string): string | null {
+  const m = line.match(/className\s*=\s*"([^"]*)"/);
+  if (!m) return null;
+  return m[1].split(/\s+/).find((c) => c.startsWith('pa-')) ?? null;
+}
+
+export function addClassNameToJsxLine(
+  line: string,
+  className: string
+): { line: string; warning?: string } {
+  const strClassRegex = /className\s*=\s*"([^"]*)"/;
+  if (strClassRegex.test(line)) {
+    return {
+      line: line.replace(strClassRegex, (m, existing) => {
+        const classes = existing.split(/\s+/).filter(Boolean);
+        if (classes.includes(className)) return m;
+        return `className="${[...classes, className].join(' ')}"`;
+      }),
+    };
+  }
+
+  if (/className\s*=\s*\{/.test(line)) {
+    return {
+      line,
+      warning: `Cannot inject className into dynamic className={...}`,
+    };
+  }
+
+  const tagRegex = /<([A-Za-z][\w.]*)\b/;
+  if (!tagRegex.test(line)) {
+    return { line, warning: `No JSX tag found on line for className injection` };
+  }
+  return {
+    line: line.replace(tagRegex, (_m, tag) => `<${tag} className="${className}"`),
+  };
+}
+
+/** Insert an import after the existing import block. Returns true if the line was inserted. */
+export function ensureSidecarImport(lines: string[], importPath: string): boolean {
+  const needle = `'${importPath}'`;
+  if (lines.some((l) => l.includes(needle))) return false;
+
+  let lastImportIdx = -1;
+  for (let i = 0; i < Math.min(lines.length, 80); i++) {
+    const l = lines[i];
+    if (/^\s*import\s/.test(l)) lastImportIdx = i;
+  }
+  const insertIdx = lastImportIdx + 1;
+  lines.splice(insertIdx, 0, `import '${importPath}';`);
+  return true;
+}
+
+async function upsertStateCssRule(
+  cssFilePath: string,
+  className: string,
+  state: string,
+  property: string,
+  newValue: string
+): Promise<void> {
+  let content: string;
+  try {
+    content = await readFile(cssFilePath, 'utf-8');
+  } catch {
+    content = '/* PixelAgent generated styles — do not edit by hand. */\n';
+  }
+
+  const selector = `.${className}:${state}`;
+  const ruleRegex = new RegExp(
+    `(\\.${escapeRegex(className)}:${state}\\s*\\{)([\\s\\S]*?)(\\})`,
+    'm'
+  );
+
+  const match = content.match(ruleRegex);
+  if (match) {
+    const inner = match[2];
+    const propRegex = new RegExp(`(\\s*${escapeRegex(property)}\\s*:\\s*)[^;]+;?`);
+    let nextInner: string;
+    if (propRegex.test(inner)) {
+      nextInner = inner.replace(propRegex, `$1${newValue};`);
+    } else {
+      const trimmed = inner.replace(/\s+$/, '');
+      const lead = trimmed.endsWith(';') || trimmed === '' ? '' : ';';
+      nextInner = `${trimmed}${lead}\n  ${property}: ${newValue};\n`;
+    }
+    content = content.replace(ruleRegex, `$1${nextInner}$3`);
+  } else {
+    if (!content.endsWith('\n')) content += '\n';
+    content += `\n${selector} {\n  ${property}: ${newValue};\n}\n`;
+  }
+
+  await writeFile(cssFilePath, content, 'utf-8');
 }
 
 export function patchInlineStyle(

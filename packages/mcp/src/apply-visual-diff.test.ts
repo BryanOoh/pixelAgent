@@ -76,31 +76,4 @@ describe('applyVisualDiff (demo global-css)', () => {
     }
   });
 
-  it('refuses to write inline-style changes for non-normal states', async () => {
-    const appPath = resolve(projectRoot, 'packages/demo/src/App.tsx');
-    const originalApp = await readFile(appPath, 'utf-8');
-
-    try {
-      const payload: ApplyPayload = {
-        schemaVersion: 1,
-        elementSelector: 'button.site-btn',
-        sourceFile: 'packages/demo/src/App.tsx',
-        lineNumber: 69,
-        targetScope: 'this-instance',
-        state: 'hover',
-        stylingSystem: 'inline',
-        changes: [{ property: 'color', oldValue: 'rgb(0,0,0)', newValue: 'red' }],
-      };
-
-      const result = await applyVisualDiff(projectRoot, payload);
-
-      // Nothing should land on disk — :hover can't be expressed inline.
-      const app = await readFile(appPath, 'utf-8');
-      expect(app).toBe(originalApp);
-      expect(result.linesChanged).toHaveLength(0);
-      expect(result.warnings?.some((w) => w.includes('hover'))).toBe(true);
-    } finally {
-      await writeFile(appPath, originalApp, 'utf-8');
-    }
-  });
 });
