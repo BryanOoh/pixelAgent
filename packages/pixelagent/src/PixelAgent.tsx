@@ -316,11 +316,11 @@ export function PixelAgent({
   );
 
   const handleApply = useCallback(
-    async (pendingByElement: Map<Element, ApplyPayload['changes']>) => {
+    async (pendingByElement: Map<Element, ApplyPayload['changes']>): Promise<boolean> => {
       const entries = Array.from(pendingByElement.entries()).filter(
         ([, changes]) => changes.length > 0
       );
-      if (entries.length === 0) return;
+      if (entries.length === 0) return false;
 
       const effectiveEndpoint = applyEndpoint ?? autoEndpoint ?? undefined;
       const results = [];
@@ -353,6 +353,8 @@ export function PixelAgent({
         else if (r.mode === 'mcp' && !r.result.success)
           console.warn(`[pixelagent] Apply #${i} reported no changes:`, r.result);
       });
+
+      return allApplied;
     },
     [targetScope, elementState, applyEndpoint, autoEndpoint, onApply, showCopyStatus]
   );

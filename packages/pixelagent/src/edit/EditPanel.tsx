@@ -26,7 +26,7 @@ interface EditPanelProps {
   onTargetScopeChange: (scope: TargetScope) => void;
   elementState: ElementState;
   onElementStateChange: (state: ElementState) => void;
-  onApply: (pendingByElement: Map<Element, StyleChange[]>) => void | Promise<void>;
+  onApply: (pendingByElement: Map<Element, StyleChange[]>) => Promise<boolean>;
   applyStatus: string | null;
   isToolbarTarget: (target: EventTarget | null) => boolean;
   onPreviewApi?: (api: EditPreviewApi | null) => void;
@@ -123,9 +123,14 @@ export function EditPanel({
 
   const handleApply = async () => {
     if (totalPendingCount === 0) return;
-    await onApply(pendingByElement);
-    // Pending edits are now in source; reset the tracker so badge zeroes out.
+    const applied = await onApply(pendingByElement);
+    if (!applied) return;
+    // Pending edits are now in source. Drop the in-memory tracker and clear
+    // the inline preview overrides so the element renders from the patched
+    // source (incl. the sidecar :hover rule), instead of staying stuck on
+    // the preview colour.
     clearAllPending();
+    revertPreviews();
   };
 
   const source = selectedElement ? readReactSource(selectedElement) : null;
