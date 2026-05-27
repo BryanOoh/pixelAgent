@@ -72,7 +72,7 @@ export async function applyVisualDiff(
         // Inline can't express :hover/:focus/etc., so route the change to a
         // sibling sidecar CSS file and attach a stable class to the element.
         const existing = findExistingPaClass(line);
-        const className = existing ?? generatePaClassName(payload.sourceFile, lineIndex + 1);
+        const className = existing ?? generatePaClassName(payload.sourceFile, lines);
 
         if (!existing) {
           const classResult = addClassNameToJsxLine(line, className);
@@ -268,9 +268,24 @@ function patchValueAttribute(
 
 const SIDECAR_FILENAME = 'pixelagent-styles.css';
 
-export function generatePaClassName(sourceFile: string, lineNumber: number): string {
-  const base = basename(sourceFile, extname(sourceFile)).replace(/[^A-Za-z0-9_-]/g, '');
-  return `pa-${base || 'el'}-${lineNumber}`;
+const PA_CLASS_RE = /\bpa-[A-Za-z0-9_-]+\b/g;
+
+/**
+ * Pick the smallest `pa-<basename>-<n>` slot not already used anywhere in the
+ * source file. Line-number-based names collide when imports shift content
+ * (e.g. first Apply on line 7 takes `pa-App-7`, the same line later refers to
+ * a different element). Scanning the whole file guarantees uniqueness.
+ */
+export function generatePaClassName(sourceFile: string, lines: string[]): string {
+  const base = basename(sourceFile, extname(sourceFile)).replace(/[^A-Za-z0-9_-]/g, '') || 'el';
+  const used = new Set<string>();
+  for (const line of lines) {
+    const matches = line.match(PA_CLASS_RE);
+    if (matches) for (const m of matches) used.add(m);
+  }
+  let n = 1;
+  while (used.has(`pa-${base}-${n}`)) n++;
+  return `pa-${base}-${n}`;
 }
 
 export function findExistingPaClass(line: string): string | null {
@@ -345,22 +360,27 @@ async function upsertStateCssRule(
     'm'
   );
 
+  // !important so the :state rule wins over the element's normal-state
+  // inline style. Inline (specificity 1,0,0,0) would otherwise beat
+  // `.cls:state` (0,2,0) and the hover edit would visibly do nothing.
+  const declaration = `${property}: ${newValue} !important`;
+
   const match = content.match(ruleRegex);
   if (match) {
     const inner = match[2];
     const propRegex = new RegExp(`(\\s*${escapeRegex(property)}\\s*:\\s*)[^;]+;?`);
     let nextInner: string;
     if (propRegex.test(inner)) {
-      nextInner = inner.replace(propRegex, `$1${newValue};`);
+      nextInner = inner.replace(propRegex, `$1${newValue} !important;`);
     } else {
       const trimmed = inner.replace(/\s+$/, '');
       const lead = trimmed.endsWith(';') || trimmed === '' ? '' : ';';
-      nextInner = `${trimmed}${lead}\n  ${property}: ${newValue};\n`;
+      nextInner = `${trimmed}${lead}\n  ${declaration};\n`;
     }
     content = content.replace(ruleRegex, `$1${nextInner}$3`);
   } else {
     if (!content.endsWith('\n')) content += '\n';
-    content += `\n${selector} {\n  ${property}: ${newValue};\n}\n`;
+    content += `\n${selector} {\n  ${declaration};\n}\n`;
   }
 
   await writeFile(cssFilePath, content, 'utf-8');

@@ -13,12 +13,18 @@ import {
 
 describe('inline + state helpers', () => {
   describe('generatePaClassName', () => {
-    it('builds a stable class from basename + line', () => {
-      expect(generatePaClassName('src/App.tsx', 8)).toBe('pa-App-8');
-      expect(generatePaClassName('src/components/Hero.tsx', 42)).toBe('pa-Hero-42');
+    it('picks the first unused slot in the file', () => {
+      expect(generatePaClassName('src/App.tsx', ['<p>'])).toBe('pa-App-1');
     });
-    it('sanitizes basenames that contain unsupported chars', () => {
-      expect(generatePaClassName('src/My File.tsx', 1)).toBe('pa-MyFile-1');
+    it('skips classes already in use to avoid collisions on shifted lines', () => {
+      const lines = [
+        `<h1 className="pa-App-1">`,
+        `<p className="pa-App-2">`,
+      ];
+      expect(generatePaClassName('src/App.tsx', lines)).toBe('pa-App-3');
+    });
+    it('sanitizes basenames', () => {
+      expect(generatePaClassName('src/My File.tsx', [])).toBe('pa-MyFile-1');
     });
   });
 
@@ -131,7 +137,7 @@ describe('applyVisualDiff (inline + state)', () => {
     expect(after).toMatch(/<p className="pa-App-\d+" style=/);
 
     const css = await readFile(resolve(srcDir, 'pixelagent-styles.css'), 'utf-8');
-    expect(css).toMatch(/\.pa-App-\d+:hover\s*\{[^}]*color:\s*red[^}]*\}/);
+    expect(css).toMatch(/\.pa-App-\d+:hover\s*\{[^}]*color:\s*red\s*!important[^}]*\}/);
   });
 
   it('reuses an existing pa-* className on re-apply and merges properties into the same rule', async () => {
@@ -153,7 +159,7 @@ describe('applyVisualDiff (inline + state)', () => {
     await writeFile(srcAbs, before, 'utf-8');
     await writeFile(
       resolve(srcDir, 'pixelagent-styles.css'),
-      `.pa-App-5:hover {\n  color: red;\n}\n`,
+      `.pa-App-5:hover {\n  color: red !important;\n}\n`,
       'utf-8'
     );
 
@@ -179,7 +185,7 @@ describe('applyVisualDiff (inline + state)', () => {
 
     // CSS should now contain both color and background-color in the same :hover rule.
     const css = await readFile(resolve(srcDir, 'pixelagent-styles.css'), 'utf-8');
-    expect(css).toMatch(/\.pa-App-5:hover\s*\{[\s\S]*color:\s*red/);
-    expect(css).toMatch(/\.pa-App-5:hover\s*\{[\s\S]*background-color:\s*yellow/);
+    expect(css).toMatch(/\.pa-App-5:hover\s*\{[\s\S]*color:\s*red\s*!important/);
+    expect(css).toMatch(/\.pa-App-5:hover\s*\{[\s\S]*background-color:\s*yellow\s*!important/);
   });
 });
