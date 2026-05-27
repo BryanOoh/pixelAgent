@@ -376,6 +376,68 @@ export function getRelevantComputedStyles(element: Element): Record<string, stri
   return styles;
 }
 
+/**
+ * Walk every reachable stylesheet for rule declarations targeted at this
+ * element's pseudo-state (`:hover`, `:focus`, `:active`, `:disabled`). Used
+ * to surface "what does the element look like in this state?" in the Edit
+ * panel and as the inline preview override when the user toggles into that
+ * state. Cross-origin sheets that throw on `cssRules` access are silently
+ * skipped.
+ */
+export function readStateRuleDeclarations(
+  element: Element,
+  state: 'hover' | 'focus' | 'active' | 'disabled'
+): Record<string, string> {
+  const out: Record<string, string> = {};
+  const pseudo = `:${state}`;
+  const seenSheets = new WeakSet<CSSStyleSheet>();
+
+  function walk(rules: CSSRuleList): void {
+    for (let i = 0; i < rules.length; i++) {
+      const rule = rules[i];
+      if (rule.type === CSSRule.STYLE_RULE) {
+        const styleRule = rule as CSSStyleRule;
+        const selectors = styleRule.selectorText.split(',').map((s) => s.trim());
+        for (const sel of selectors) {
+          if (!sel.endsWith(pseudo)) continue;
+          const baseSel = sel.slice(0, -pseudo.length).trim() || '*';
+          try {
+            if (element.matches(baseSel)) {
+              for (let j = 0; j < styleRule.style.length; j++) {
+                const prop = styleRule.style[j];
+                const val = styleRule.style.getPropertyValue(prop);
+                if (val) out[prop] = val;
+              }
+              break;
+            }
+          } catch {
+            // Invalid selector (e.g. unsupported pseudo); skip.
+          }
+        }
+      } else if (
+        rule.type === CSSRule.MEDIA_RULE ||
+        rule.type === CSSRule.SUPPORTS_RULE
+      ) {
+        walk((rule as CSSGroupingRule).cssRules);
+      }
+    }
+  }
+
+  for (const sheet of Array.from(document.styleSheets)) {
+    if (seenSheets.has(sheet)) continue;
+    seenSheets.add(sheet);
+    let rules: CSSRuleList;
+    try {
+      rules = sheet.cssRules;
+    } catch {
+      continue;
+    }
+    walk(rules);
+  }
+
+  return out;
+}
+
 export function formatComputedStyles(styles: Record<string, string>): string {
   return Object.entries(styles)
     .map(([key, value]) => `${key}:${value}`)

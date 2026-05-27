@@ -8,6 +8,7 @@ import {
   getEditableTextInfo,
   getPreviewTargets,
   getRelevantComputedStyles,
+  readStateRuleDeclarations,
   restoreInlineStyles,
   restoreTextSnapshot,
   setEditableTextPreview,
@@ -204,6 +205,24 @@ export function useEditPreview(
     restoreInlineStyles(
       initialInlineRef.current.filter((s) => targets.includes(s.element))
     );
+
+    // Read the resting baseline AFTER the revert but BEFORE we apply any
+    // state overlay, so the panel display starts from real computed styles
+    // for the current element (avoids stale-originalValues races).
+    const baseline = getRelevantComputedStyles(selectedElement);
+
+    // Pull `:state` rule declarations from the page's stylesheets so the
+    // user sees the element rendered as if in that state, and so the panel
+    // reflects e.g. an existing `:hover { background: red }` before they
+    // even start editing.
+    const stateRules =
+      elementState === 'normal'
+        ? {}
+        : readStateRuleDeclarations(selectedElement, elementState);
+    for (const [prop, val] of Object.entries(stateRules)) {
+      for (const el of targets) el.style.setProperty(prop, val);
+    }
+
     const pendingForState =
       pendingByElement.get(selectedElement)?.get(elementState) ?? [];
     for (const change of pendingForState) {
@@ -213,20 +232,18 @@ export function useEditPreview(
       }
     }
 
-    // Reset the panel display to baseline overlaid with whatever the new
-    // state has pending. Otherwise an edit made in Hover keeps showing in
-    // the Normal field after the state toggle, even though the DOM is
-    // already back to its resting style.
-    //
-    // Only do this when the state truly changed for the SAME element. On a
-    // fresh element selection, the selection effect already set values from
-    // computed styles — overriding with `originalValues` here would read
-    // the stale state from before this render commit and blank the panel.
+    // Reset panel values when the user toggled state on the same element,
+    // OR when they switched to a different element while a non-normal state
+    // is active (so the new element's :state styling shows up). On a fresh
+    // selection in normal state, defer to the selection effect's setValues
+    // so it isn't fighting with this one.
     const ctx = lastStateContextRef.current;
     const stateChanged =
       ctx !== null && ctx.element === selectedElement && ctx.state !== elementState;
-    if (stateChanged) {
-      const nextValues: Record<string, string> = { ...originalValues };
+    const elementChangedInNonNormal =
+      ctx !== null && ctx.element !== selectedElement && elementState !== 'normal';
+    if (stateChanged || elementChangedInNonNormal) {
+      const nextValues: Record<string, string> = { ...baseline, ...stateRules };
       for (const change of pendingForState) {
         if (change.property === 'textContent' || change.property === 'value') continue;
         nextValues[change.property] = change.newValue;
