@@ -252,7 +252,12 @@ export function EditPanel({
                     <GlassButton
                       variant="glass-primary"
                       onClick={handleApply}
-                      disabled={pendingChanges.length === 0 || !source?.sourceFile}
+                      disabled={pendingChanges.length === 0}
+                      title={
+                        source?.sourceFile
+                          ? undefined
+                          : 'No source file — Apply copies selector + changes to clipboard'
+                      }
                     >
                       Apply
                     </GlassButton>

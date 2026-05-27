@@ -8,6 +8,8 @@ import {
   getAllInstancesSelector,
   getElementDisplayLabel,
   getAnnotationSessionDisplay,
+  PIXELAGENT_SOURCE_ATTR,
+  readReactSource,
   shortenSelectorForDisplay,
 } from './dom.js';
 import type { AnnotationEntry } from './types.js';
@@ -169,5 +171,49 @@ describe('elementFromDomPath', () => {
   it('returns null for invalid paths', () => {
     expect(elementFromDomPath('')).toBeNull();
     expect(elementFromDomPath('invalid')).toBeNull();
+  });
+});
+
+describe('readReactSource (data-pa-src fallback)', () => {
+  it('reads source from data-pa-src on the element', () => {
+    document.body.innerHTML = '';
+    const el = document.createElement('button');
+    el.setAttribute(PIXELAGENT_SOURCE_ATTR, 'packages/demo/src/App.tsx:42');
+    document.body.appendChild(el);
+
+    const result = readReactSource(el);
+    expect(result.sourceFile).toBe('packages/demo/src/App.tsx');
+    expect(result.lineNumber).toBe(42);
+  });
+
+  it('walks up to nearest ancestor with data-pa-src', () => {
+    document.body.innerHTML = '';
+    const parent = document.createElement('section');
+    parent.setAttribute(PIXELAGENT_SOURCE_ATTR, 'packages/demo/src/App.tsx:10');
+    const child = document.createElement('span');
+    parent.appendChild(child);
+    document.body.appendChild(parent);
+
+    const result = readReactSource(child);
+    expect(result.sourceFile).toBe('packages/demo/src/App.tsx');
+    expect(result.lineNumber).toBe(10);
+  });
+
+  it('returns null sourceFile when no attribute and no fiber', () => {
+    document.body.innerHTML = '';
+    const el = document.createElement('div');
+    document.body.appendChild(el);
+    const result = readReactSource(el);
+    expect(result.sourceFile).toBeNull();
+    expect(result.lineNumber).toBeNull();
+  });
+
+  it('ignores malformed attribute values', () => {
+    document.body.innerHTML = '';
+    const el = document.createElement('div');
+    el.setAttribute(PIXELAGENT_SOURCE_ATTR, 'no-colon-here');
+    document.body.appendChild(el);
+    const result = readReactSource(el);
+    expect(result.sourceFile).toBeNull();
   });
 });

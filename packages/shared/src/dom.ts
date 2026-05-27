@@ -547,11 +547,74 @@ export function normalizeSourcePath(fileName: string): string {
   return normalized;
 }
 
+/**
+ * Attribute injected by `pixelagentSourcePlugin` (dev-only Vite plugin) on every
+ * JSX opening element. Value format: `"relative/path.tsx:lineNumber"`.
+ *
+ * Reading this attribute is the primary source-resolution path on React 19+
+ * (which removed fiber `_debugSource`). The fiber path remains as a fallback
+ * for React 18 setups without the plugin.
+ */
+export const PIXELAGENT_SOURCE_ATTR = 'data-pa-src';
+
+function readDomSourceAttr(element: Element): {
+  sourceFile: string | null;
+  lineNumber: number | null;
+} {
+  // Walk up from the clicked element — the nearest ancestor with the attr wins.
+  // JSX text/whitespace nodes have no attr; their parent JSXOpeningElement does.
+  let cursor: Element | null = element;
+  while (cursor) {
+    const raw = cursor.getAttribute?.(PIXELAGENT_SOURCE_ATTR);
+    if (raw) {
+      const colon = raw.lastIndexOf(':');
+      if (colon > 0) {
+        const file = raw.slice(0, colon);
+        const lineRaw = raw.slice(colon + 1);
+        const line = Number.parseInt(lineRaw, 10);
+        if (file && Number.isFinite(line) && line > 0) {
+          return { sourceFile: normalizeSourcePath(file), lineNumber: line };
+        }
+      }
+    }
+    cursor = cursor.parentElement;
+  }
+  return { sourceFile: null, lineNumber: null };
+}
+
+function readFiberComponentName(element: Element): string | null {
+  const fiberKey = Object.keys(element).find(
+    (key) => key.startsWith('__reactFiber$') || key.startsWith('__reactInternalInstance$')
+  );
+  if (!fiberKey) return null;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let fiber: any = (element as unknown as Record<string, unknown>)[fiberKey];
+  while (fiber) {
+    if (typeof fiber.type === 'function' && fiber.type.name) return fiber.type.name;
+    // React 19 keeps `_debugOwner` even though `_debugSource` is gone.
+    if (fiber._debugOwner?.type?.name) return fiber._debugOwner.type.name;
+    fiber = fiber.return;
+  }
+  return null;
+}
+
 export function readReactSource(element: Element): {
   sourceFile: string | null;
   lineNumber: number | null;
   componentName: string | null;
 } {
+  // 1) Primary path — data-pa-src attribute injected by pixelagentSourcePlugin.
+  //    Works on React 18 and React 19, independent of fiber internals.
+  const domSource = readDomSourceAttr(element);
+  if (domSource.sourceFile) {
+    return {
+      sourceFile: domSource.sourceFile,
+      lineNumber: domSource.lineNumber,
+      componentName: readFiberComponentName(element),
+    };
+  }
+
+  // 2) Legacy fallback — React 18 fiber `_debugSource` (removed in React 19).
   const fiberKey = Object.keys(element).find(
     (key) => key.startsWith('__reactFiber$') || key.startsWith('__reactInternalInstance$')
   );
@@ -575,7 +638,12 @@ export function readReactSource(element: Element): {
     fiber = fiber.return;
   }
 
-  return { sourceFile: null, lineNumber: null, componentName: null };
+  // 3) No source resolved — still surface component name for agent context.
+  return {
+    sourceFile: null,
+    lineNumber: null,
+    componentName: readFiberComponentName(element),
+  };
 }
 
 export function detectStylingSystem(element: Element): import('./types.js').StylingSystem {
