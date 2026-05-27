@@ -62,6 +62,13 @@ export function useEditPreview(
   const initialInlineRef = useRef<InlineStyleSnapshot[]>([]);
   const initialTextRef = useRef<TextSnapshot | null>(null);
   const undoStackRef = useRef<HistoryFrame[]>([]);
+  // Tracks the (element, state) pair the state-change effect last serviced
+  // so we can distinguish "user toggled the state" from "selectedElement
+  // just changed". Without this, the state effect overwrites the fresh
+  // values from the selection effect with stale originalValues.
+  const lastStateContextRef = useRef<{ element: Element | null; state: ElementState } | null>(
+    null
+  );
 
   const [values, setValues] = useState<Record<string, string>>({});
   const [originalValues, setOriginalValues] = useState<Record<string, string>>({});
@@ -210,12 +217,23 @@ export function useEditPreview(
     // state has pending. Otherwise an edit made in Hover keeps showing in
     // the Normal field after the state toggle, even though the DOM is
     // already back to its resting style.
-    const nextValues: Record<string, string> = { ...originalValues };
-    for (const change of pendingForState) {
-      if (change.property === 'textContent' || change.property === 'value') continue;
-      nextValues[change.property] = change.newValue;
+    //
+    // Only do this when the state truly changed for the SAME element. On a
+    // fresh element selection, the selection effect already set values from
+    // computed styles — overriding with `originalValues` here would read
+    // the stale state from before this render commit and blank the panel.
+    const ctx = lastStateContextRef.current;
+    const stateChanged =
+      ctx !== null && ctx.element === selectedElement && ctx.state !== elementState;
+    if (stateChanged) {
+      const nextValues: Record<string, string> = { ...originalValues };
+      for (const change of pendingForState) {
+        if (change.property === 'textContent' || change.property === 'value') continue;
+        nextValues[change.property] = change.newValue;
+      }
+      setValues(nextValues);
     }
-    setValues(nextValues);
+    lastStateContextRef.current = { element: selectedElement, state: elementState };
 
     clearTailwindStatePreview(Array.from(touchedRef.current));
     applyTailwindStatePreview(targets, elementState);
