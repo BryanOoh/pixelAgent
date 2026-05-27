@@ -1,6 +1,6 @@
 {
   "name": "@pixelagent/mcp",
-  "version": "0.1.11",
+  "version": "0.1.12",
   "description": "Local MCP server for PixelAgent — apply diffs, resolve elements, read design tokens",
   "license": "MIT",
   "publishConfig": {
@@ -66,7 +66,7 @@
     "@babel/traverse": "^7.29.7",
     "@babel/types": "^7.29.7",
     "@modelcontextprotocol/sdk": "^1.12.1",
-    "@pixelagent/shared": "0.1.11",
+    "@pixelagent/shared": "0.1.12",
     "zod": "^3.25.56"
   },
   "devDependencies": {

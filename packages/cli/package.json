@@ -1,6 +1,6 @@
 {
   "name": "@pixelagent/cli",
-  "version": "0.1.11",
+  "version": "0.1.12",
   "description": "PixelAgent setup CLI — configure MCP for Claude Code and Cursor",
   "license": "MIT",
   "publishConfig": {
@@ -27,7 +27,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@pixelagent/mcp": "0.1.11"
+    "@pixelagent/mcp": "0.1.12"
   },
   "devDependencies": {
     "@types/node": "^22.15.29",

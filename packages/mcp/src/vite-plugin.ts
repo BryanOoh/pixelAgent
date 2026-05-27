@@ -54,6 +54,23 @@ export function pixelagentVitePlugin(options: PixelagentVitePluginOptions = {}):
           const body = (await readJsonBody(req)) as { payload?: ApplyPayload };
           const payload = body.payload ?? (body as ApplyPayload);
           const result = await applyVisualDiff(projectRoot, payload);
+
+          // Force a clean reload when the patch touched a sidecar CSS file.
+          // Vite's chokidar watcher races with module-graph invalidation for
+          // brand-new files, so partial HMR can leave the new import
+          // unresolved and the rule unloaded. A full reload guarantees the
+          // browser parses the post-Apply source from scratch and pulls the
+          // sidecar through the module graph.
+          if (result.success && result.sidecarFiles && result.sidecarFiles.length > 0) {
+            server.ws.send({ type: 'full-reload', path: '*' });
+          } else if (result.success && payload.sourceFile) {
+            const sourceAbs = resolve(projectRoot, payload.sourceFile);
+            const mod = server.moduleGraph.getModuleById(sourceAbs);
+            if (mod) {
+              server.moduleGraph.invalidateModule(mod);
+            }
+          }
+
           res.setHeader('Content-Type', 'application/json');
           res.statusCode = 200;
           res.end(JSON.stringify(result));

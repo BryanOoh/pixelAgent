@@ -66,6 +66,8 @@ export interface ApplyVisualDiffResult {
   patchedFile: string;
   linesChanged: number[];
   warnings?: string[];
+  /** Extra files written outside the primary source (e.g. inline-state sidecars). */
+  sidecarFiles?: string[];
 }
 
 export interface DesignTokens {

@@ -184,6 +184,7 @@ export async function applyVisualDiff(
     patchedFile: payload.sourceFile,
     linesChanged: sourceLinesChanged.length > 0 ? sourceLinesChanged : sidecarUsed ? [lineIndex + 1] : [],
     warnings: warnings.length > 0 ? warnings : undefined,
+    sidecarFiles: sidecarUsed ? Array.from(sidecarFiles) : undefined,
   };
 }
 
