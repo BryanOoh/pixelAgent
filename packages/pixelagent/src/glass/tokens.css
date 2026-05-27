@@ -144,6 +144,7 @@
   --pa-text-secondary: rgba(255, 255, 255, 0.58);
   --pa-accent: #a5b4fc;
   --pa-accent-bright: #c7d2fe;
+  --pa-success: #6ee7b7;
 
   --pa-field-bg: rgba(255, 255, 255, 0.06);
   --pa-field-bg-hover: rgba(255, 255, 255, 0.09);

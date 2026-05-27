@@ -983,6 +983,14 @@
   color: var(--pa-text-secondary);
 }
 
+.pa-change-count--success {
+  color: var(--pa-success);
+}
+
+.pa-change-count--error {
+  color: #fca5a5;
+}
+
 /* ── Session panel content ── */
 
 .pa-popover-body {

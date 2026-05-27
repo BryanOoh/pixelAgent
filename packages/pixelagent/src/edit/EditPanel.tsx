@@ -245,7 +245,15 @@ export function EditPanel({
                   </div>
 
                   <div className="pa-edit-footer">
-                    <span className="pa-change-count">
+                    <span
+                      className={
+                        applyStatus
+                          ? /fail/i.test(applyStatus)
+                            ? 'pa-change-count pa-change-count--error'
+                            : 'pa-change-count pa-change-count--success'
+                          : 'pa-change-count'
+                      }
+                    >
                       {applyStatus ??
                         `${pendingChanges.length} pending change${pendingChanges.length !== 1 ? 's' : ''}`}
                     </span>
