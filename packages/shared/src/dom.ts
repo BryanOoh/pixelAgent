@@ -647,10 +647,16 @@ export function readReactSource(element: Element): {
 }
 
 export function detectStylingSystem(element: Element): import('./types.js').StylingSystem {
-  const classList = element.classList;
+  // `pa-*` classes are owned by PixelAgent's sidecar state writer — they
+  // shouldn't flip an otherwise inline element into the global-css path on
+  // subsequent Applies, since that would route normal-state edits to a
+  // stylesheet that never had the rule to begin with.
+  const meaningfulClasses = Array.from(element.classList).filter(
+    (c) => !c.startsWith('pa-')
+  );
 
-  if (classList.length > 0) {
-    const classes = Array.from(classList).join(' ');
+  if (meaningfulClasses.length > 0) {
+    const classes = meaningfulClasses.join(' ');
     if (TAILWIND_CLASS_RE.test(classes)) {
       return 'tailwind';
     }

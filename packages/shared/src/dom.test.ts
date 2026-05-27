@@ -2,6 +2,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   countElementInstances,
+  detectStylingSystem,
   formatAnnotation,
   formatAllAnnotations,
   elementFromDomPath,
@@ -215,5 +216,43 @@ describe('readReactSource (data-pa-src fallback)', () => {
     document.body.appendChild(el);
     const result = readReactSource(el);
     expect(result.sourceFile).toBeNull();
+  });
+});
+
+describe('detectStylingSystem', () => {
+  it('returns inline for an element with only inline styles', () => {
+    document.body.innerHTML = '';
+    const el = document.createElement('p');
+    el.style.color = 'red';
+    document.body.appendChild(el);
+    expect(detectStylingSystem(el)).toBe('inline');
+  });
+
+  it('returns global-css for an element with a regular className', () => {
+    document.body.innerHTML = '';
+    const el = document.createElement('p');
+    el.className = 'site-hero-lead';
+    document.body.appendChild(el);
+    expect(detectStylingSystem(el)).toBe('global-css');
+  });
+
+  it('ignores pa-* classes so inline elements stay inline after a state Apply', () => {
+    // Regression for 0.1.9: once the sidecar patcher added `pa-App-8` to a
+    // previously inline element, the next Apply was routed to global-css and
+    // failed with "No stylesheet rule for .pa-App-8".
+    document.body.innerHTML = '';
+    const el = document.createElement('p');
+    el.className = 'pa-App-8';
+    el.style.color = 'blue';
+    document.body.appendChild(el);
+    expect(detectStylingSystem(el)).toBe('inline');
+  });
+
+  it('still detects global-css when pa-* coexists with user classes', () => {
+    document.body.innerHTML = '';
+    const el = document.createElement('p');
+    el.className = 'pa-App-8 site-hero-lead';
+    document.body.appendChild(el);
+    expect(detectStylingSystem(el)).toBe('global-css');
   });
 });
