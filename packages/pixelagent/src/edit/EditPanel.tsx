@@ -26,7 +26,9 @@ interface EditPanelProps {
   onTargetScopeChange: (scope: TargetScope) => void;
   elementState: ElementState;
   onElementStateChange: (state: ElementState) => void;
-  onApply: (pendingByElement: Map<Element, StyleChange[]>) => Promise<boolean>;
+  onApply: (
+    pendingByElement: Map<Element, Map<ElementState, StyleChange[]>>
+  ) => Promise<boolean>;
   applyStatus: string | null;
   isToolbarTarget: (target: EventTarget | null) => boolean;
   onPreviewApi?: (api: EditPreviewApi | null) => void;

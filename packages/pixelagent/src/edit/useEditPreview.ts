@@ -68,12 +68,14 @@ export function useEditPreview(
   const [textKind, setTextKind] = useState<TextEditKind>('none');
   const [textValue, setTextValue] = useState('');
   const [originalText, setOriginalText] = useState('');
-  // Pending changes are kept per-element so switching layers does not wipe
-  // in-progress edits. The badge sums across all tracked elements; Apply
-  // iterates entries to dispatch one payload per element.
-  const [pendingByElement, setPendingByElement] = useState<Map<Element, StyleChange[]>>(
-    () => new Map()
-  );
+  // Pending changes are keyed by (element, state). Switching layers preserves
+  // edits across elements; switching the pseudo-state on a layer preserves
+  // each state's edits so hover changes don't bleed into the normal-state
+  // payload. The badge sums across every (element, state) bucket; Apply
+  // dispatches one payload per bucket.
+  const [pendingByElement, setPendingByElement] = useState<
+    Map<Element, Map<ElementState, StyleChange[]>>
+  >(() => new Map());
   const [canUndo, setCanUndo] = useState(false);
 
   const captureFrame = useCallback((): HistoryFrame => {
@@ -113,7 +115,7 @@ export function useEditPreview(
       applyTailwindStatePreview(targets, elementState);
 
       const currentPending = selectedElement
-        ? (pendingByElement.get(selectedElement) ?? [])
+        ? (pendingByElement.get(selectedElement)?.get(elementState) ?? [])
         : [];
       if (reapplyPending && currentPending.length > 0) {
         for (const change of currentPending) {
@@ -186,9 +188,31 @@ export function useEditPreview(
     if (!selectedElement) return;
     const targets = getPreviewTargets(selectedElement, targetScope);
     targetsRef.current = targets;
+
+    // Drop the previous state's inline preview (so hover edits don't bleed
+    // into the normal-state DOM when the user toggles back), then re-apply
+    // whatever the new state has pending. Normal-state pending becomes the
+    // resting inline preview; hover/focus/etc. pending shows the element as
+    // though it's in that state while editing.
+    restoreInlineStyles(
+      initialInlineRef.current.filter((s) => targets.includes(s.element))
+    );
+    const pendingForState =
+      pendingByElement.get(selectedElement)?.get(elementState) ?? [];
+    for (const change of pendingForState) {
+      if (change.property === 'textContent' || change.property === 'value') continue;
+      for (const el of targets) {
+        el.style.setProperty(change.property, change.newValue);
+      }
+    }
+
     clearTailwindStatePreview(Array.from(touchedRef.current));
     applyTailwindStatePreview(targets, elementState);
     touchedRef.current = new Set(targets);
+    // pendingByElement intentionally omitted — updateProperty applies new
+    // edits inline directly, so re-running this effect on every keystroke
+    // would just flicker.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [elementState, selectedElement, targetScope]);
 
   const upsertChange = useCallback(
@@ -196,21 +220,21 @@ export function useEditPreview(
       if (!selectedElement) return;
       setPendingByElement((prev) => {
         const next = new Map(prev);
-        const existing = next.get(selectedElement) ?? [];
+        const stateMap = new Map(next.get(selectedElement) ?? new Map<ElementState, StyleChange[]>());
+        const existing = stateMap.get(elementState) ?? [];
         const filtered = existing.filter((c) => c.property !== property);
         if (newValue === oldValue) {
-          if (filtered.length === 0) {
-            next.delete(selectedElement);
-          } else {
-            next.set(selectedElement, filtered);
-          }
+          if (filtered.length === 0) stateMap.delete(elementState);
+          else stateMap.set(elementState, filtered);
         } else {
-          next.set(selectedElement, [...filtered, { property, oldValue, newValue }]);
+          stateMap.set(elementState, [...filtered, { property, oldValue, newValue }]);
         }
+        if (stateMap.size === 0) next.delete(selectedElement);
+        else next.set(selectedElement, stateMap);
         return next;
       });
     },
-    [selectedElement]
+    [selectedElement, elementState]
   );
 
   const updateProperty = useCallback(
@@ -300,11 +324,13 @@ export function useEditPreview(
   }, [revertPreviews, selectedElement]);
 
   const currentPending = selectedElement
-    ? (pendingByElement.get(selectedElement) ?? [])
+    ? (pendingByElement.get(selectedElement)?.get(elementState) ?? [])
     : [];
 
   let totalPendingCount = 0;
-  for (const arr of pendingByElement.values()) totalPendingCount += arr.length;
+  for (const stateMap of pendingByElement.values()) {
+    for (const arr of stateMap.values()) totalPendingCount += arr.length;
+  }
 
   const clearAllPending = useCallback(() => {
     setPendingByElement(new Map());

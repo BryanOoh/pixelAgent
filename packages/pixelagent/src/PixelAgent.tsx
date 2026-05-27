@@ -316,15 +316,20 @@ export function PixelAgent({
   );
 
   const handleApply = useCallback(
-    async (pendingByElement: Map<Element, ApplyPayload['changes']>): Promise<boolean> => {
-      const entries = Array.from(pendingByElement.entries()).filter(
-        ([, changes]) => changes.length > 0
-      );
+    async (
+      pendingByElement: Map<Element, Map<ElementState, ApplyPayload['changes']>>
+    ): Promise<boolean> => {
+      const entries: Array<[Element, ElementState, ApplyPayload['changes']]> = [];
+      for (const [element, stateMap] of pendingByElement) {
+        for (const [state, changes] of stateMap) {
+          if (changes.length > 0) entries.push([element, state, changes]);
+        }
+      }
       if (entries.length === 0) return false;
 
       const effectiveEndpoint = applyEndpoint ?? autoEndpoint ?? undefined;
       const results = [];
-      for (const [element, changes] of entries) {
+      for (const [element, state, changes] of entries) {
         const source = readReactSource(element);
         const payload: ApplyPayload = {
           schemaVersion: 1,
@@ -332,7 +337,7 @@ export function PixelAgent({
           sourceFile: source.sourceFile,
           lineNumber: source.lineNumber,
           targetScope,
-          state: elementState,
+          state,
           stylingSystem: detectStylingSystem(element),
           changes,
         };
@@ -356,7 +361,7 @@ export function PixelAgent({
 
       return allApplied;
     },
-    [targetScope, elementState, applyEndpoint, autoEndpoint, onApply, showCopyStatus]
+    [targetScope, applyEndpoint, autoEndpoint, onApply, showCopyStatus]
   );
 
   const activateMode = (nextMode: PixelAgentMode) => {
