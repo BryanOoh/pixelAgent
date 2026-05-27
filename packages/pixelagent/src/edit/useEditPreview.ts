@@ -68,7 +68,12 @@ export function useEditPreview(
   const [textKind, setTextKind] = useState<TextEditKind>('none');
   const [textValue, setTextValue] = useState('');
   const [originalText, setOriginalText] = useState('');
-  const [pendingChanges, setPendingChanges] = useState<StyleChange[]>([]);
+  // Pending changes are kept per-element so switching layers does not wipe
+  // in-progress edits. The badge sums across all tracked elements; Apply
+  // iterates entries to dispatch one payload per element.
+  const [pendingByElement, setPendingByElement] = useState<Map<Element, StyleChange[]>>(
+    () => new Map()
+  );
   const [canUndo, setCanUndo] = useState(false);
 
   const captureFrame = useCallback((): HistoryFrame => {
@@ -107,8 +112,11 @@ export function useEditPreview(
       clearTailwindStatePreview(prevTouched);
       applyTailwindStatePreview(targets, elementState);
 
-      if (reapplyPending && pendingChanges.length > 0) {
-        for (const change of pendingChanges) {
+      const currentPending = selectedElement
+        ? (pendingByElement.get(selectedElement) ?? [])
+        : [];
+      if (reapplyPending && currentPending.length > 0) {
+        for (const change of currentPending) {
           if (change.property === 'textContent' || change.property === 'value') {
             for (const el of targets) {
               setEditableTextPreview(el, change.property as TextEditKind, change.newValue);
@@ -121,7 +129,7 @@ export function useEditPreview(
         }
       }
     },
-    [selectedElement, targetScope, elementState, pendingChanges]
+    [selectedElement, targetScope, elementState, pendingByElement]
   );
 
   useEffect(() => {
@@ -136,7 +144,7 @@ export function useEditPreview(
       setTextKind('none');
       setTextValue('');
       setOriginalText('');
-      setPendingChanges([]);
+      setPendingByElement(new Map());
       setCanUndo(false);
       return;
     }
@@ -161,7 +169,9 @@ export function useEditPreview(
         ? captureTextSnapshot(selectedElement as HTMLElement, textInfo.kind)
         : null;
 
-    setPendingChanges([]);
+    // Intentionally NOT clearing pendingByElement on element switch — pending
+    // edits on other elements stay tracked so the badge accumulates across
+    // layers and switching back restores in-progress work.
     applyTailwindStatePreview(targets, elementState);
 
     return () => clearTailwindStatePreview(targets);
@@ -181,13 +191,27 @@ export function useEditPreview(
     touchedRef.current = new Set(targets);
   }, [elementState, selectedElement, targetScope]);
 
-  const upsertChange = useCallback((property: string, oldValue: string, newValue: string) => {
-    setPendingChanges((prev) => {
-      const filtered = prev.filter((c) => c.property !== property);
-      if (newValue === oldValue) return filtered;
-      return [...filtered, { property, oldValue, newValue }];
-    });
-  }, []);
+  const upsertChange = useCallback(
+    (property: string, oldValue: string, newValue: string) => {
+      if (!selectedElement) return;
+      setPendingByElement((prev) => {
+        const next = new Map(prev);
+        const existing = next.get(selectedElement) ?? [];
+        const filtered = existing.filter((c) => c.property !== property);
+        if (newValue === oldValue) {
+          if (filtered.length === 0) {
+            next.delete(selectedElement);
+          } else {
+            next.set(selectedElement, filtered);
+          }
+        } else {
+          next.set(selectedElement, [...filtered, { property, oldValue, newValue }]);
+        }
+        return next;
+      });
+    },
+    [selectedElement]
+  );
 
   const updateProperty = useCallback(
     (property: string, newValue: string) => {
@@ -249,7 +273,7 @@ export function useEditPreview(
     if (initialTextRef.current) restoreTextSnapshot(initialTextRef.current);
     undoStackRef.current = [];
     setCanUndo(false);
-    setPendingChanges([]);
+    setPendingByElement(new Map());
     if (selectedElement) {
       setValues(getRelevantComputedStyles(selectedElement));
       const textInfo = getEditableTextInfo(selectedElement);
@@ -267,7 +291,7 @@ export function useEditPreview(
     clearTailwindStatePreview(Array.from(touchedRef.current));
     undoStackRef.current = [];
     setCanUndo(false);
-    setPendingChanges([]);
+    setPendingByElement(new Map());
     if (selectedElement) {
       setValues(getRelevantComputedStyles(selectedElement));
       const textInfo = getEditableTextInfo(selectedElement);
@@ -275,11 +299,25 @@ export function useEditPreview(
     }
   }, [revertPreviews, selectedElement]);
 
+  const currentPending = selectedElement
+    ? (pendingByElement.get(selectedElement) ?? [])
+    : [];
+
+  let totalPendingCount = 0;
+  for (const arr of pendingByElement.values()) totalPendingCount += arr.length;
+
+  const clearAllPending = useCallback(() => {
+    setPendingByElement(new Map());
+  }, []);
+
   return {
     values,
     textKind,
     textValue,
-    pendingChanges,
+    pendingChanges: currentPending,
+    pendingByElement,
+    totalPendingCount,
+    clearAllPending,
     canUndo,
     updateProperty,
     updateText,

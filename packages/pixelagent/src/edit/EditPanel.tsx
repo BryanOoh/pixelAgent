@@ -26,7 +26,7 @@ interface EditPanelProps {
   onTargetScopeChange: (scope: TargetScope) => void;
   elementState: ElementState;
   onElementStateChange: (state: ElementState) => void;
-  onApply: (changes: StyleChange[]) => void | Promise<void>;
+  onApply: (pendingByElement: Map<Element, StyleChange[]>) => void | Promise<void>;
   applyStatus: string | null;
   isToolbarTarget: (target: EventTarget | null) => boolean;
   onPreviewApi?: (api: EditPreviewApi | null) => void;
@@ -51,6 +51,9 @@ export function EditPanel({
     textKind,
     textValue,
     pendingChanges,
+    pendingByElement,
+    totalPendingCount,
+    clearAllPending,
     canUndo,
     updateProperty,
     updateText,
@@ -118,9 +121,11 @@ export function EditPanel({
     };
   }, [handleMouseMove, handleClick]);
 
-  const handleApply = () => {
-    if (pendingChanges.length === 0) return;
-    onApply(pendingChanges);
+  const handleApply = async () => {
+    if (totalPendingCount === 0) return;
+    await onApply(pendingByElement);
+    // Pending edits are now in source; reset the tracker so badge zeroes out.
+    clearAllPending();
   };
 
   const source = selectedElement ? readReactSource(selectedElement) : null;
@@ -255,12 +260,12 @@ export function EditPanel({
                       }
                     >
                       {applyStatus ??
-                        `${pendingChanges.length} pending change${pendingChanges.length !== 1 ? 's' : ''}`}
+                        `${totalPendingCount} pending change${totalPendingCount !== 1 ? 's' : ''}`}
                     </span>
                     <GlassButton
                       variant="glass-primary"
                       onClick={handleApply}
-                      disabled={pendingChanges.length === 0}
+                      disabled={totalPendingCount === 0}
                       title={
                         source?.sourceFile
                           ? undefined

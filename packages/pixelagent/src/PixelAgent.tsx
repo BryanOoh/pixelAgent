@@ -19,7 +19,7 @@ import {
   readReactSource,
 } from '@pixelagent/shared';
 import { EditPanel } from './edit/EditPanel';
-import { formatApplyFeedback, submitApply } from './edit/submitApply';
+import { submitApply } from './edit/submitApply';
 import { AnnotationPopover } from './annotate/AnnotationPopover';
 import { AreaSelectOverlay } from './annotate/AreaSelectOverlay';
 import { buildAnnotationEntry } from './annotate/buildAnnotationEntry';
@@ -316,36 +316,45 @@ export function PixelAgent({
   );
 
   const handleApply = useCallback(
-    async (changes: ApplyPayload['changes']) => {
-      if (!selectedElement) return;
+    async (pendingByElement: Map<Element, ApplyPayload['changes']>) => {
+      const entries = Array.from(pendingByElement.entries()).filter(
+        ([, changes]) => changes.length > 0
+      );
+      if (entries.length === 0) return;
 
-      const source = readReactSource(selectedElement);
-      const payload: ApplyPayload = {
-        schemaVersion: 1,
-        elementSelector: getScopeSelector(selectedElement, targetScope),
-        sourceFile: source.sourceFile,
-        lineNumber: source.lineNumber,
-        targetScope,
-        state: elementState,
-        stylingSystem: detectStylingSystem(selectedElement),
-        changes,
-      };
+      const effectiveEndpoint = applyEndpoint ?? autoEndpoint ?? undefined;
+      const results = [];
+      for (const [element, changes] of entries) {
+        const source = readReactSource(element);
+        const payload: ApplyPayload = {
+          schemaVersion: 1,
+          elementSelector: getScopeSelector(element, targetScope),
+          sourceFile: source.sourceFile,
+          lineNumber: source.lineNumber,
+          targetScope,
+          state: elementState,
+          stylingSystem: detectStylingSystem(element),
+          changes,
+        };
+        results.push(await submitApply(payload, { applyEndpoint: effectiveEndpoint, onApply }));
+      }
 
-      const transport = await submitApply(payload, {
-        applyEndpoint: applyEndpoint ?? autoEndpoint ?? undefined,
-        onApply,
+      const allApplied = results.every(
+        (r) =>
+          r.mode === 'mcp' && r.result.success && r.result.linesChanged.length > 0
+      );
+      showCopyStatus(allApplied ? 'Change applied' : 'Apply failed');
+
+      // Surface per-payload detail to the console for debugging.
+      results.forEach((r, i) => {
+        if (r.mode === 'error') console.error(`[pixelagent] Apply #${i} failed:`, r.message);
+        else if (r.mode === 'clipboard')
+          console.warn(`[pixelagent] Apply #${i} fell back to clipboard`);
+        else if (r.mode === 'mcp' && !r.result.success)
+          console.warn(`[pixelagent] Apply #${i} reported no changes:`, r.result);
       });
-      showCopyStatus(formatApplyFeedback(transport));
     },
-    [
-      selectedElement,
-      targetScope,
-      elementState,
-      applyEndpoint,
-      autoEndpoint,
-      onApply,
-      showCopyStatus,
-    ]
+    [targetScope, elementState, applyEndpoint, autoEndpoint, onApply, showCopyStatus]
   );
 
   const activateMode = (nextMode: PixelAgentMode) => {
