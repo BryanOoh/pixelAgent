@@ -48,9 +48,88 @@ export interface PixelAgentProps {
   applyEndpoint?: string;
   /** Custom transport. Takes precedence over `applyEndpoint`. */
   onApply?: (payload: ApplyPayload) => Promise<ApplyVisualDiffResult | null>;
+  /**
+   * Demo mode: Apply writes normal-state edits as permanent inline styles and
+   * non-normal-state edits into a managed `<style>` tag in `document.head`,
+   * skipping the source-patching pipeline entirely. Useful when there's no
+   * Vite dev server (e.g. a Vercel deployment) — changes look real in the
+   * page but reset on reload. When this is on, `applyEndpoint`/`onApply`
+   * are ignored.
+   */
+  runtimeStateStyles?: boolean;
 }
 
 const AUTO_APPLY_PATH = '/__pixelagent/apply';
+const RUNTIME_STYLE_ELEMENT_ID = 'pixelagent-runtime-styles';
+let runtimeClassCounter = 0;
+const runtimeClassByElement = new WeakMap<Element, string>();
+
+function getOrAssignRuntimeClass(element: Element): string {
+  let cls = runtimeClassByElement.get(element);
+  if (cls) return cls;
+  // Re-use an existing pa-runtime-* class already on the element (e.g. after
+  // a remount); otherwise mint a fresh one.
+  for (const c of Array.from(element.classList)) {
+    if (c.startsWith('pa-runtime-')) {
+      runtimeClassByElement.set(element, c);
+      return c;
+    }
+  }
+  runtimeClassCounter += 1;
+  cls = `pa-runtime-${runtimeClassCounter}`;
+  runtimeClassByElement.set(element, cls);
+  element.classList.add(cls);
+  return cls;
+}
+
+function ensureRuntimeStyleTag(): HTMLStyleElement {
+  let tag = document.getElementById(RUNTIME_STYLE_ELEMENT_ID) as HTMLStyleElement | null;
+  if (!tag) {
+    tag = document.createElement('style');
+    tag.id = RUNTIME_STYLE_ELEMENT_ID;
+    document.head.appendChild(tag);
+  }
+  return tag;
+}
+
+/**
+ * Upsert `.<className>:<state> { property: value !important }` into the
+ * runtime style tag. Existing properties on the same rule are updated in
+ * place; new ones get appended inside the same block.
+ */
+function upsertRuntimeRule(
+  className: string,
+  state: string,
+  property: string,
+  newValue: string
+) {
+  const tag = ensureRuntimeStyleTag();
+  const escaped = className.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const ruleRegex = new RegExp(
+    `(\\.${escaped}:${state}\\s*\\{)([\\s\\S]*?)(\\})`,
+    'm'
+  );
+  const declaration = `${property}: ${newValue} !important`;
+  let content = tag.textContent ?? '';
+  const match = content.match(ruleRegex);
+  if (match) {
+    const inner = match[2];
+    const propRegex = new RegExp(`(\\s*${property.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*:\\s*)[^;]+;?`);
+    let nextInner: string;
+    if (propRegex.test(inner)) {
+      nextInner = inner.replace(propRegex, `$1${newValue} !important;`);
+    } else {
+      const trimmed = inner.replace(/\s+$/, '');
+      const sep = trimmed.endsWith(';') || trimmed === '' ? '' : ';';
+      nextInner = `${trimmed}${sep}\n  ${declaration};\n`;
+    }
+    content = content.replace(ruleRegex, `$1${nextInner}$3`);
+  } else {
+    if (content && !content.endsWith('\n')) content += '\n';
+    content += `\n.${className}:${state} {\n  ${declaration};\n}\n`;
+  }
+  tag.textContent = content;
+}
 
 interface AreaDragState {
   startX: number;
@@ -78,6 +157,7 @@ export function PixelAgent({
   onHostThemeChange,
   applyEndpoint,
   onApply,
+  runtimeStateStyles,
 }: PixelAgentProps = {}) {
   const pixelAgentUi = usePixelAgentUi({ ui, hostTheme, onHostThemeChange });
   const [autoEndpoint, setAutoEndpoint] = useState<string | null>(null);
@@ -318,14 +398,37 @@ export function PixelAgent({
   const handleApply = useCallback(
     async (
       pendingByElement: Map<Element, Map<ElementState, ApplyPayload['changes']>>
-    ): Promise<boolean> => {
+    ): Promise<{ applied: boolean; skipRevert?: boolean }> => {
       const entries: Array<[Element, ElementState, ApplyPayload['changes']]> = [];
       for (const [element, stateMap] of pendingByElement) {
         for (const [state, changes] of stateMap) {
           if (changes.length > 0) entries.push([element, state, changes]);
         }
       }
-      if (entries.length === 0) return false;
+      if (entries.length === 0) return { applied: false };
+
+      if (runtimeStateStyles) {
+        // Demo mode: commit non-normal edits via a managed <style> tag and
+        // turn normal-state previews into permanent inline styles. Order
+        // matters — non-normal cleanup must remove its hover preview before
+        // we re-apply normal inline values on top.
+        for (const [element, state, changes] of entries) {
+          if (state === 'normal') continue;
+          const cls = getOrAssignRuntimeClass(element);
+          for (const c of changes) {
+            (element as HTMLElement).style.removeProperty(c.property);
+            upsertRuntimeRule(cls, state, c.property, c.newValue);
+          }
+        }
+        for (const [element, state, changes] of entries) {
+          if (state !== 'normal') continue;
+          for (const c of changes) {
+            (element as HTMLElement).style.setProperty(c.property, c.newValue);
+          }
+        }
+        showCopyStatus('Change applied');
+        return { applied: true, skipRevert: true };
+      }
 
       const effectiveEndpoint = applyEndpoint ?? autoEndpoint ?? undefined;
       const results = [];
@@ -359,9 +462,9 @@ export function PixelAgent({
           console.warn(`[pixelagent] Apply #${i} reported no changes:`, r.result);
       });
 
-      return allApplied;
+      return { applied: allApplied };
     },
-    [targetScope, applyEndpoint, autoEndpoint, onApply, showCopyStatus]
+    [targetScope, applyEndpoint, autoEndpoint, onApply, runtimeStateStyles, showCopyStatus]
   );
 
   const activateMode = (nextMode: PixelAgentMode) => {

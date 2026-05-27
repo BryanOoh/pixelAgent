@@ -28,7 +28,7 @@ interface EditPanelProps {
   onElementStateChange: (state: ElementState) => void;
   onApply: (
     pendingByElement: Map<Element, Map<ElementState, StyleChange[]>>
-  ) => Promise<boolean>;
+  ) => Promise<{ applied: boolean; skipRevert?: boolean }>;
   applyStatus: string | null;
   isToolbarTarget: (target: EventTarget | null) => boolean;
   onPreviewApi?: (api: EditPreviewApi | null) => void;
@@ -125,14 +125,13 @@ export function EditPanel({
 
   const handleApply = async () => {
     if (totalPendingCount === 0) return;
-    const applied = await onApply(pendingByElement);
-    if (!applied) return;
-    // Pending edits are now in source. Drop the in-memory tracker and clear
-    // the inline preview overrides so the element renders from the patched
-    // source (incl. the sidecar :hover rule), instead of staying stuck on
-    // the preview colour.
+    const result = await onApply(pendingByElement);
+    if (!result.applied) return;
     clearAllPending();
-    revertPreviews();
+    // Runtime mode commits the inline preview as the final resting style,
+    // so reverting would erase the applied edit. The file-patch path needs
+    // the revert so the patched source/sidecar takes over rendering.
+    if (!result.skipRevert) revertPreviews();
   };
 
   const source = selectedElement ? readReactSource(selectedElement) : null;
