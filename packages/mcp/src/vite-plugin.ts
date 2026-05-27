@@ -55,19 +55,48 @@ export function pixelagentVitePlugin(options: PixelagentVitePluginOptions = {}):
           const payload = body.payload ?? (body as ApplyPayload);
           const result = await applyVisualDiff(projectRoot, payload);
 
-          // Force a clean reload when the patch touched a sidecar CSS file.
-          // Vite's chokidar watcher races with module-graph invalidation for
-          // brand-new files, so partial HMR can leave the new import
-          // unresolved and the rule unloaded. A full reload guarantees the
-          // browser parses the post-Apply source from scratch and pulls the
-          // sidecar through the module graph.
-          if (result.success && result.sidecarFiles && result.sidecarFiles.length > 0) {
-            server.ws.send({ type: 'full-reload', path: '*' });
-          } else if (result.success && payload.sourceFile) {
+          // Push HMR updates so the panel doesn't have to full-reload.
+          // React Refresh treats `react-refresh` boundaries specially and
+          // won't re-evaluate the source's import list on its own, so an
+          // invalidate-only path leaves a brand-new sidecar `import` line
+          // dangling. Sending an explicit js-update for the source forces
+          // re-parsing; we also fire a css-update per sidecar so existing
+          // rule edits hot-replace without flashing the page.
+          if (result.success && payload.sourceFile) {
             const sourceAbs = resolve(projectRoot, payload.sourceFile);
-            const mod = server.moduleGraph.getModuleById(sourceAbs);
-            if (mod) {
-              server.moduleGraph.invalidateModule(mod);
+            const sourceMod = server.moduleGraph.getModuleById(sourceAbs);
+            if (sourceMod) {
+              server.moduleGraph.invalidateModule(sourceMod);
+              server.ws.send({
+                type: 'update',
+                updates: [
+                  {
+                    type: 'js-update',
+                    path: sourceMod.url,
+                    acceptedPath: sourceMod.url,
+                    timestamp: Date.now(),
+                  },
+                ],
+              });
+            }
+
+            if (result.sidecarFiles && result.sidecarFiles.length > 0) {
+              for (const sidecarAbs of result.sidecarFiles) {
+                const sidecarMod = server.moduleGraph.getModuleById(sidecarAbs);
+                if (!sidecarMod) continue; // brand-new file; source HMR pulls it
+                server.moduleGraph.invalidateModule(sidecarMod);
+                server.ws.send({
+                  type: 'update',
+                  updates: [
+                    {
+                      type: 'css-update',
+                      path: sidecarMod.url,
+                      acceptedPath: sidecarMod.url,
+                      timestamp: Date.now(),
+                    },
+                  ],
+                });
+              }
             }
           }
 
