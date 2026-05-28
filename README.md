@@ -16,8 +16,12 @@ The live DOM layer for vibe coders. Point at running code — not a screenshot. 
 ## Install
 
 ```bash
-npm install pixelagent @pixelagent/mcp
+npm install pixelagent
 ```
+
+That's all you need — annotate works immediately, and `npx pixelagent setup` wires
+up MCP auto-apply (the server runs via `npx`, no extra install). Add
+`@pixelagent/mcp` only for the React 19 source plugin below.
 
 In your app:
 
@@ -36,7 +40,12 @@ export default function Layout({ children }) {
 
 ### React 19 — opt into source resolution
 
-React 19 removed fiber `_debugSource`. To recover exact-file Apply payloads, add the dev-only Vite plugin:
+React 19 removed fiber `_debugSource`. To recover exact-file Apply payloads, install
+the MCP package and add its dev-only Vite plugin:
+
+```bash
+npm install -D @pixelagent/mcp
+```
 
 ```ts
 // vite.config.ts
@@ -99,7 +108,7 @@ pixelAgent/
 
 | Package | Description |
 |---------|-------------|
-| [`pixelagent`](https://www.npmjs.com/package/pixelagent) | React component — Shadow DOM toolbar, annotate + edit panel |
+| [`pixelagent`](https://www.npmjs.com/package/pixelagent) | React component — floating toolbar, annotate + edit panel |
 | [`@pixelagent/mcp`](https://www.npmjs.com/package/@pixelagent/mcp) | Local MCP server + dev-only Vite plugins (apply, source) |
 | [`@pixelagent/cli`](https://www.npmjs.com/package/@pixelagent/cli) | `npx pixelagent setup` — configure MCP for Claude Code / Cursor |
 | [`@pixelagent/shared`](https://www.npmjs.com/package/@pixelagent/shared) | Types and DOM utilities |
