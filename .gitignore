@@ -7,6 +7,9 @@ design.md
 DESIGN.md
 Design.md
 
+# Internal one-page overview (links to the gitignored design/PRD docs)
+PROJECT_OVERVIEW.md
+
 # Team & agent instructions (Claude Code / Cursor)
 CLAUDE.md
 CLAUDE.local.md

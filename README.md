@@ -8,7 +8,7 @@ The live DOM layer for vibe coders. Point at running code — not a screenshot. 
 
 ## Status
 
-`0.1.3` beta on npm — install with `@beta` tag (see below). See [CHANGELOG.md](./CHANGELOG.md).
+`0.1.19` beta on npm — `npm install` gets the current release (see below). See [CHANGELOG.md](./CHANGELOG.md).
 
 - **Annotate** (click → note → copy) — primary path, works day one.
 - **Edit + Apply** — secondary beta surface. Source resolution works on React 18 (via fiber) and React 19 (via the new dev-only Vite plugin).
@@ -16,7 +16,7 @@ The live DOM layer for vibe coders. Point at running code — not a screenshot. 
 ## Install
 
 ```bash
-npm install pixelagent@beta @pixelagent/mcp@beta
+npm install pixelagent @pixelagent/mcp
 ```
 
 In your app:
@@ -80,7 +80,7 @@ git clone https://github.com/BryanOoh/pixelAgent.git && cd pixelAgent
 npm install
 npm run build
 npm run dev              # demo at http://localhost:5173
-npm test                 # 51 tests
+npm test                 # 80 tests
 npx pixelagent setup     # configure MCP for Claude Code / Cursor
 ```
 
