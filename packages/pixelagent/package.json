@@ -1,6 +1,6 @@
 {
   "name": "pixelagent",
-  "version": "0.1.20",
+  "version": "0.1.21",
   "description": "Live DOM layer for vibe coders — annotate and edit running React apps",
   "license": "MIT",
   "repository": {
@@ -48,7 +48,7 @@
     "react-dom": ">=17.0.0"
   },
   "dependencies": {
-    "@pixelagent/shared": "0.1.20"
+    "@pixelagent/shared": "0.1.21"
   },
   "devDependencies": {
     "@types/react": "^19.1.8",

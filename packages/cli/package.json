@@ -1,6 +1,6 @@
 {
   "name": "@pixelagent/cli",
-  "version": "0.1.20",
+  "version": "0.1.21",
   "description": "PixelAgent setup CLI — configure MCP for Claude Code and Cursor",
   "license": "MIT",
   "publishConfig": {

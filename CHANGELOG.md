@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.21] - 2026-05-28
+
+### Fixed
+
+- Toolbar settings (gear) icon no longer renders distorted/off-center —
+  replaced the malformed path with a clean, symmetric gear.
+
 ## [0.1.20] - 2026-05-28
 
 ### Changed
