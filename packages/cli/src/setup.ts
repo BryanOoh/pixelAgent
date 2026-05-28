@@ -1,8 +1,5 @@
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
 
 interface McpServerConfig {
   command: string;
@@ -48,10 +45,13 @@ async function writeJsonFile(path: string, data: unknown): Promise<void> {
 }
 
 function getMcpServerEntry(projectRoot: string): McpServerConfig {
-  const mcpPath = resolve(__dirname, '../../mcp/dist/index.js');
+  // Run the published MCP server via npx so the config has no fragile path
+  // into node_modules — npx prefers a local install and falls back to
+  // fetching on demand. @pixelagent/mcp is therefore not a dependency of
+  // this CLI; it is only pulled in when the MCP client actually launches it.
   return {
-    command: 'node',
-    args: [mcpPath],
+    command: 'npx',
+    args: ['-y', '@pixelagent/mcp'],
     env: {
       PIXELAGENT_PROJECT_ROOT: projectRoot,
     },
