@@ -1,6 +1,6 @@
 {
   "name": "pixelagent",
-  "version": "0.1.21",
+  "version": "0.1.22",
   "description": "Live DOM layer for vibe coders — annotate and edit running React apps",
   "license": "MIT",
   "repository": {
@@ -31,11 +31,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/pixelagent.js"
-    },
-    "./style.css": "./dist/pixelagent.css"
+    }
   },
   "files": ["dist", "bin"],
-  "sideEffects": ["**/*.css"],
+  "sideEffects": true,
   "scripts": {
     "prepublishOnly": "npm run build",
     "build": "vite build && tsc -p tsconfig.build.json --emitDeclarationOnly",

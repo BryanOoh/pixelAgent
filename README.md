@@ -8,7 +8,7 @@ The live DOM layer for vibe coders. Point at running code — not a screenshot. 
 
 ## Status
 
-`0.1.20` beta on npm — `npm install` gets the current release (see below). See [CHANGELOG.md](./CHANGELOG.md).
+`0.1.22` beta on npm — `npm install` gets the current release (see below). See [CHANGELOG.md](./CHANGELOG.md).
 
 - **Annotate** (click → note → copy) — primary path, works day one.
 - **Edit + Apply** — secondary beta surface. Source resolution works on React 18 (via fiber) and React 19 (via the new dev-only Vite plugin).
@@ -23,7 +23,6 @@ In your app:
 
 ```tsx
 import { PixelAgent } from 'pixelagent';
-import 'pixelagent/style.css';
 
 export default function Layout({ children }) {
   return (

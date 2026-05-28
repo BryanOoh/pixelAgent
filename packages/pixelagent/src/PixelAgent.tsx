@@ -30,7 +30,27 @@ import { SessionPanel } from './annotate/SessionPanel';
 import { Toolbar } from './shadow/Toolbar';
 import { useAnnotationSession } from './hooks/useAnnotationSession';
 import { usePixelAgentUi } from './ui/usePixelAgentUi';
-import './styles/pixelagent.css';
+import pixelagentBaseCss from './styles/pixelagent.css?inline';
+
+const BASE_STYLE_ELEMENT_ID = 'pixelagent-base-styles';
+
+/**
+ * Inject the toolbar's base stylesheet once, on import. Shipped inline in the
+ * JS bundle so consumers don't need a separate `import 'pixelagent/style.css'`.
+ * The UI portals into the light DOM (`document.body`), so a global <style> in
+ * the head is what reaches it. Idempotent across HMR / multiple mounts; no-op
+ * during SSR.
+ */
+function ensureBaseStyles(): void {
+  if (typeof document === 'undefined') return;
+  if (document.getElementById(BASE_STYLE_ELEMENT_ID)) return;
+  const tag = document.createElement('style');
+  tag.id = BASE_STYLE_ELEMENT_ID;
+  tag.textContent = pixelagentBaseCss;
+  document.head.appendChild(tag);
+}
+
+ensureBaseStyles();
 
 export type PixelAgentMode = 'annotate' | 'edit' | 'idle';
 

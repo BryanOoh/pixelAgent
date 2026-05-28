@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.22] - 2026-05-28
+
+### Changed
+
+- `pixelagent` now injects its toolbar stylesheet automatically on import — the
+  CSS ships inlined in the JS bundle and is added to `document.head` at runtime
+  (the UI portals into the light DOM, so a global `<style>` is what reaches it).
+  Consumers no longer need `import 'pixelagent/style.css'`.
+
+### Removed
+
+- The `pixelagent/style.css` package export — the stylesheet is now bundled into
+  the component, so no separate CSS file is published. **Breaking:** setups that
+  still `import 'pixelagent/style.css'` must drop that line.
+
 ## [0.1.21] - 2026-05-28
 
 ### Fixed
