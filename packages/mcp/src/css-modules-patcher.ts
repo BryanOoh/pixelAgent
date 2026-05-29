@@ -14,7 +14,9 @@ import {
   applyChangeToRuleBody,
   computeChangedLines,
   findCssRule,
+  insertStateRule,
 } from './css-rule-utils.js';
+import { cssRuleKey, type PatchContext } from './patch-context.js';
 
 export interface CssModulePatchResult {
   patchedFile: string;
@@ -26,7 +28,8 @@ export async function patchCssModulesFile(
   projectRoot: string,
   sourceFilePath: string,
   sourceLine: string,
-  changes: StyleChange[]
+  changes: StyleChange[],
+  ctx: PatchContext = { state: 'normal', targetScope: 'all-instances' }
 ): Promise<CssModulePatchResult | null> {
   const className = extractStylesReference(sourceLine);
   if (!className) {
@@ -65,44 +68,54 @@ export async function patchCssModulesFile(
     };
   }
 
-  const rule = findCssRule(cssContent, className);
-  if (!rule) {
-    return {
-      patchedFile: relative(projectRoot, cssAbsPath),
-      linesChanged: [],
-      warnings: [`SOURCE_NOT_FOUND: No .${className} rule in ${importPath}`],
-    };
-  }
+  const ruleKey = cssRuleKey(className, ctx);
+  const isStateRule = ruleKey !== className;
+  const rule = findCssRule(cssContent, ruleKey);
 
-  const warnings: string[] = [];
-  let newBody = rule.body;
+  if (rule) {
+    const warnings: string[] = [];
+    let newBody = rule.body;
 
-  for (const change of changes) {
-    const updated = applyChangeToRuleBody(newBody, change);
-    if (updated.changed) {
-      newBody = updated.body;
-    } else if (updated.warning) {
-      warnings.push(updated.warning);
+    for (const change of changes) {
+      const updated = applyChangeToRuleBody(newBody, change);
+      if (updated.changed) {
+        newBody = updated.body;
+      } else if (updated.warning) {
+        warnings.push(updated.warning);
+      }
     }
-  }
 
-  const newContent =
-    cssContent.slice(0, rule.start) + newBody + cssContent.slice(rule.end);
+    const newContent =
+      cssContent.slice(0, rule.start) + newBody + cssContent.slice(rule.end);
 
-  if (newContent === cssContent) {
+    if (newContent === cssContent) {
+      return { patchedFile: relative(projectRoot, cssAbsPath), linesChanged: [], warnings };
+    }
+
+    await writeFile(cssAbsPath, newContent, 'utf-8');
     return {
       patchedFile: relative(projectRoot, cssAbsPath),
-      linesChanged: [],
+      linesChanged: computeChangedLines(cssContent, newContent),
       warnings,
     };
   }
 
-  await writeFile(cssAbsPath, newContent, 'utf-8');
+  // No matching rule. Create a `.class:state { … }` rule for a pseudo-state
+  // rather than writing into the resting rule (which would corrupt normal).
+  if (isStateRule) {
+    const newContent = insertStateRule(cssContent, className, ruleKey, changes);
+    await writeFile(cssAbsPath, newContent, 'utf-8');
+    return {
+      patchedFile: relative(projectRoot, cssAbsPath),
+      linesChanged: computeChangedLines(cssContent, newContent),
+      warnings: [],
+    };
+  }
 
   return {
     patchedFile: relative(projectRoot, cssAbsPath),
-    linesChanged: computeChangedLines(cssContent, newContent),
-    warnings,
+    linesChanged: [],
+    warnings: [`SOURCE_NOT_FOUND: No .${ruleKey} rule in ${importPath}`],
   };
 }
 

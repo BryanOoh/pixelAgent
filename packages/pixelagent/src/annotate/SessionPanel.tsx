@@ -2,17 +2,19 @@ import { useEffect, useState } from 'react';
 import type { AnnotationEntry } from '@pixelagent/shared';
 import { getAnnotationSessionDisplay } from '@pixelagent/shared';
 import { GlassButton, GlassPanel } from '../glass';
+import { useDraggable } from '../hooks/useDraggable';
 import { CopyFeedbackSlot } from '../ui/CopyFeedbackSlot';
+import { TrashIcon } from '../ui/icons';
 
 interface SessionPanelProps {
   annotations: AnnotationEntry[];
-  collapsed: boolean;
-  onToggleCollapsed: () => void;
   onClose: () => void;
   onCopyAll: () => void | Promise<void>;
   onCopyOne: (id: string) => void | Promise<void>;
   onRemove: (id: string) => void;
   onUpdate: (id: string, patch: Partial<AnnotationEntry>) => void;
+  activeId: string | null;
+  onActiveChange: (id: string | null) => void;
   copyStatus: string | null;
   copiedEntryId: string | null;
   copyAllFrom: 'toolbar' | 'session' | null;
@@ -20,13 +22,13 @@ interface SessionPanelProps {
 
 export function SessionPanel({
   annotations,
-  collapsed,
-  onToggleCollapsed,
   onClose,
   onCopyAll,
   onCopyOne,
   onRemove,
   onUpdate,
+  activeId,
+  onActiveChange,
   copyStatus,
   copiedEntryId,
   copyAllFrom,
@@ -34,15 +36,20 @@ export function SessionPanel({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draftNote, setDraftNote] = useState('');
 
+  const { elementRef: panelRef, isDragging, style, dragHandleProps } = useDraggable({
+    computeDefaultPosition: (rect) => ({
+      x: window.innerWidth - rect.width - 16,
+      y: 16,
+    }),
+  });
+
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return;
-      if (collapsed) onClose();
-      else onToggleCollapsed();
+      if (e.key === 'Escape') onClose();
     };
     document.addEventListener('keydown', onKeyDown);
     return () => document.removeEventListener('keydown', onKeyDown);
-  }, [collapsed, onClose, onToggleCollapsed]);
+  }, [onClose]);
 
   const startEdit = (entry: AnnotationEntry) => {
     setEditingId(entry.id);
@@ -56,29 +63,28 @@ export function SessionPanel({
   };
 
   return (
-    <GlassPanel
-      variant="sheet"
-      side="right"
-      className={collapsed ? 'pa-session-panel--collapsed' : undefined}
+    <div
+      ref={panelRef}
+      className={`pa-session-panel-float ${isDragging ? 'pa-session-panel-float--dragging' : ''}`}
+      style={style}
     >
+      <GlassPanel variant="sheet" side="right">
       <div className="pa-session-header">
         <div className="pa-session-header-main">
-          <GlassButton
-            variant="ghost"
-            className="pa-glass-btn--sm pa-session-collapse-btn"
-            onClick={onToggleCollapsed}
-            aria-expanded={!collapsed}
-            aria-label={collapsed ? 'Expand session panel' : 'Collapse session panel'}
+          <button
+            type="button"
+            className="pa-session-drag"
+            aria-label="Drag session panel"
+            title="Drag to move"
+            {...dragHandleProps}
           >
-            <span className="pa-session-chevron" aria-hidden="true">
-              {collapsed ? '▶' : '▼'}
+            <span className="pa-session-grip" aria-hidden="true">
+              <span /><span /><span /><span /><span /><span />
             </span>
-          </GlassButton>
+          </button>
           <h3 className="pa-session-title">Session ({annotations.length})</h3>
         </div>
-        {!collapsed && (
-          <p className="pa-session-subtitle">Persists until tab close</p>
-        )}
+        <p className="pa-session-subtitle">Persists until tab close</p>
         <div className="pa-session-actions">
           <CopyFeedbackSlot
             feedback={copyAllFrom === 'session' ? copyStatus : null}
@@ -99,7 +105,6 @@ export function SessionPanel({
         </div>
       </div>
 
-      {!collapsed && (
       <ul className="pa-session-list">
         {annotations.length === 0 && (
           <li className="pa-session-empty">
@@ -109,7 +114,16 @@ export function SessionPanel({
         {annotations.map((entry) => {
           const display = getAnnotationSessionDisplay(entry);
           return (
-          <li key={entry.id} className="pa-session-item">
+          <li
+            key={entry.id}
+            className={
+              activeId === entry.id
+                ? 'pa-session-item pa-session-item--active'
+                : 'pa-session-item'
+            }
+            onMouseEnter={() => onActiveChange(entry.id)}
+            onMouseLeave={() => onActiveChange(null)}
+          >
             {editingId === entry.id ? (
               <div className="pa-session-edit">
                 <label className="pa-label">
@@ -164,7 +178,7 @@ export function SessionPanel({
                   )}
                   <GlassButton
                     variant="ghost"
-                    className="pa-glass-btn--sm"
+                    className="pa-glass-btn--sm pa-session-action-icon"
                     onClick={() => startEdit(entry)}
                     aria-label="Edit annotation note"
                   >
@@ -172,11 +186,11 @@ export function SessionPanel({
                   </GlassButton>
                   <GlassButton
                     variant="ghost"
-                    className="pa-glass-btn--sm"
+                    className="pa-glass-btn--sm pa-session-action-icon"
                     onClick={() => onRemove(entry.id)}
                     aria-label="Remove annotation"
                   >
-                    ✕
+                    <TrashIcon />
                   </GlassButton>
                 </div>
               </>
@@ -185,7 +199,7 @@ export function SessionPanel({
           );
         })}
       </ul>
-      )}
-    </GlassPanel>
+      </GlassPanel>
+    </div>
   );
 }

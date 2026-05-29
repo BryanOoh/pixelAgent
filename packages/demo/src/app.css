@@ -55,6 +55,47 @@
   --font-display: 'Inter', system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, monospace;
 
+  /* Type scale (Tailwind v4 shape) — drives the Edit panel's Text style picker. */
+  --text-display: 72px;
+  --text-display--line-height: 76px;
+  --text-display--font-weight: 700;
+  --text-h1: 57px;
+  --text-h1--line-height: 64px;
+  --text-h1--font-weight: 400;
+  --text-h2: 45px;
+  --text-h2--line-height: 52px;
+  --text-h2--font-weight: 400;
+  --text-h3: 36px;
+  --text-h3--line-height: 44px;
+  --text-h3--font-weight: 600;
+  --text-h4: 28px;
+  --text-h4--line-height: 36px;
+  --text-h4--font-weight: 600;
+  --text-h5: 22px;
+  --text-h5--line-height: 28px;
+  --text-h5--font-weight: 600;
+  --text-h6: 18px;
+  --text-h6--line-height: 24px;
+  --text-h6--font-weight: 600;
+  --text-body: 16px;
+  --text-body--line-height: 24px;
+  --text-body--font-weight: 400;
+  --text-lead: 20px;
+  --text-lead--line-height: 30px;
+  --text-lead--font-weight: 400;
+  --text-small: 14px;
+  --text-small--line-height: 20px;
+  --text-small--font-weight: 400;
+  --text-code: 14px;
+  --text-code--line-height: 22px;
+  --text-code--font-weight: 500;
+  --text-caption: 12px;
+  --text-caption--line-height: 16px;
+  --text-caption--font-weight: 400;
+  --text-overline: 11px;
+  --text-overline--line-height: 16px;
+  --text-overline--font-weight: 600;
+
   --radius-sm: 8px;
   --radius-pill: 9999px;
 
@@ -209,6 +250,10 @@ body {
   border: 1px solid var(--color-ink);
 }
 
+.site-btn-primary:hover {
+  background-color: #ff0000;
+}
+
 .site-main {
   max-width: var(--container);
   margin: 0 auto;
@@ -266,9 +311,9 @@ body {
 
 .site-hero-title-bright {
   color: #ffffff;
-  font-weight: 700;
-  font-style: italic;
-  text-decoration: underline;
+  font-weight: 400;
+  font-style: normal;
+  text-decoration: none;
 }
 
 .site-hero-title-dim {

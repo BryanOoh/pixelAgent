@@ -36,7 +36,33 @@ export function parseUniformPx(value: string): number | null {
   return null;
 }
 
-export type PropControlKind = 'text' | 'opacity' | 'px' | 'uniform-px';
+/**
+ * Parse a single numeric length with an optional unit (e.g. "240px", "50%",
+ * "1.5", "1.5em"). Returns null for non-numeric values (auto, calc(), normal)
+ * or multi-value shorthands.
+ */
+export function parseLength(value: string): { num: number; unit: string } | null {
+  const match = value.trim().match(/^(-?\d*\.?\d+)([a-z%]*)$/i);
+  if (!match) return null;
+  const num = parseFloat(match[1]);
+  if (!Number.isFinite(num)) return null;
+  return { num, unit: match[2].toLowerCase() };
+}
+
+/** Fine step for relative/unitless units (line-height 1.5), 1 for absolute lengths. */
+export function stepForUnit(unit: string): number {
+  return unit === '' || unit === 'em' || unit === 'rem' ? 0.1 : 1;
+}
+
+/** Reformat a length to a new number, preserving its unit and a unit-appropriate precision. */
+export function formatLength(currentValue: string, num: number): string {
+  const unit = parseLength(currentValue)?.unit ?? 'px';
+  const rounded =
+    stepForUnit(unit) < 1 ? Math.round(num * 10) / 10 : Math.round(num);
+  return `${rounded}${unit}`;
+}
+
+export type PropControlKind = 'text' | 'opacity' | 'px' | 'uniform-px' | 'length';
 
 export interface PropControlConfig {
   kind: PropControlKind;
@@ -48,12 +74,12 @@ export interface PropControlConfig {
 export const PROP_CONTROLS: Record<string, PropControlConfig> = {
   padding: { kind: 'uniform-px', min: 0, max: 80, step: 1 },
   margin: { kind: 'uniform-px', min: 0, max: 80, step: 1 },
-  width: { kind: 'text' },
-  height: { kind: 'text' },
+  width: { kind: 'length', min: 0 },
+  height: { kind: 'length', min: 0 },
   'background-color': { kind: 'text' },
   color: { kind: 'text' },
   'font-size': { kind: 'px', min: 8, max: 128, step: 1 },
-  'line-height': { kind: 'text' },
+  'line-height': { kind: 'length', min: 0 },
   gap: { kind: 'uniform-px', min: 0, max: 80, step: 1 },
   'border-width': { kind: 'uniform-px', min: 0, max: 24, step: 1 },
   'border-radius': { kind: 'px', min: 0, max: 48, step: 1 },
@@ -72,6 +98,8 @@ export function sliderValueForProperty(
       return parsePx(cssValue);
     case 'uniform-px':
       return parseUniformPx(cssValue);
+    case 'length':
+      return parseLength(cssValue)?.num ?? null;
     default:
       return null;
   }

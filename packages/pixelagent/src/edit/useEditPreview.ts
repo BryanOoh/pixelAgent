@@ -45,7 +45,7 @@ const STYLE_PROP_KEYS = [
 
 interface HistoryFrame {
   inline: InlineStyleSnapshot[];
-  text: TextSnapshot | null;
+  text: TextSnapshot[];
 }
 
 export interface EditPreviewApi {
@@ -61,7 +61,7 @@ export function useEditPreview(
   const targetsRef = useRef<HTMLElement[]>([]);
   const touchedRef = useRef<Set<HTMLElement>>(new Set());
   const initialInlineRef = useRef<InlineStyleSnapshot[]>([]);
-  const initialTextRef = useRef<TextSnapshot | null>(null);
+  const initialTextRef = useRef<TextSnapshot[]>([]);
   const undoStackRef = useRef<HistoryFrame[]>([]);
   // Tracks the (element, state) pair the state-change effect last serviced
   // so we can distinguish "user toggled the state" from "selectedElement
@@ -88,14 +88,12 @@ export function useEditPreview(
 
   const captureFrame = useCallback((): HistoryFrame => {
     const elements = Array.from(touchedRef.current);
+    const kind = textKind;
     return {
       inline: captureInlineStyles(elements, [...STYLE_PROP_KEYS]),
-      text:
-        selectedElement && textKind !== 'none'
-          ? captureTextSnapshot(selectedElement as HTMLElement, textKind)
-          : null,
+      text: kind !== 'none' ? elements.map((el) => captureTextSnapshot(el, kind)) : [],
     };
-  }, [selectedElement, textKind]);
+  }, [textKind]);
 
   const pushUndo = useCallback(() => {
     undoStackRef.current.push(captureFrame());
@@ -111,13 +109,34 @@ export function useEditPreview(
 
       const prevTouched = Array.from(touchedRef.current);
       restoreInlineStyles(initialInlineRef.current.filter((s) => prevTouched.includes(s.element)));
-      if (initialTextRef.current) {
-        restoreTextSnapshot(initialTextRef.current);
+      for (const snap of initialTextRef.current) {
+        if (prevTouched.includes(snap.element)) restoreTextSnapshot(snap);
       }
 
       const targets = getPreviewTargets(selectedElement, targetScope);
       targetsRef.current = targets;
       touchedRef.current = new Set(targets);
+
+      // Expanding scope (e.g. this-instance → all-instances) pulls in elements
+      // the selection effect never snapshotted. Capture their clean initial
+      // styles (and text) now — after the restore above, before pending is
+      // re-applied — so reset/revert/state-switch can return them to baseline.
+      // Without this the extra instances keep their overrides forever.
+      const known = new Set(initialInlineRef.current.map((s) => s.element));
+      const fresh = targets.filter((el) => !known.has(el));
+      if (fresh.length > 0) {
+        initialInlineRef.current = [
+          ...initialInlineRef.current,
+          ...captureInlineStyles(fresh, [...STYLE_PROP_KEYS]),
+        ];
+        if (textKind !== 'none') {
+          const kind = textKind;
+          initialTextRef.current = [
+            ...initialTextRef.current,
+            ...fresh.map((el) => captureTextSnapshot(el, kind)),
+          ];
+        }
+      }
 
       clearTailwindStatePreview(prevTouched);
       applyTailwindStatePreview(targets, elementState);
@@ -139,7 +158,7 @@ export function useEditPreview(
         }
       }
     },
-    [selectedElement, targetScope, elementState, pendingByElement]
+    [selectedElement, targetScope, elementState, pendingByElement, textKind]
   );
 
   useEffect(() => {
@@ -147,7 +166,7 @@ export function useEditPreview(
       targetsRef.current = [];
       touchedRef.current = new Set();
       initialInlineRef.current = [];
-      initialTextRef.current = null;
+      initialTextRef.current = [];
       undoStackRef.current = [];
       setValues({});
       setOriginalValues({});
@@ -174,10 +193,11 @@ export function useEditPreview(
     setTextKind(textInfo.kind);
     setTextValue(textInfo.value);
     setOriginalText(textInfo.value);
+    const textKindAtSelect = textInfo.kind;
     initialTextRef.current =
-      textInfo.kind !== 'none'
-        ? captureTextSnapshot(selectedElement as HTMLElement, textInfo.kind)
-        : null;
+      textKindAtSelect !== 'none'
+        ? targets.map((el) => captureTextSnapshot(el, textKindAtSelect))
+        : [];
 
     // Intentionally NOT clearing pendingByElement on element switch — pending
     // edits on other elements stay tracked so the badge accumulates across
@@ -283,15 +303,16 @@ export function useEditPreview(
     [selectedElement, elementState]
   );
 
-  const updateProperty = useCallback(
-    (property: string, newValue: string) => {
+  const updateProperties = useCallback(
+    (changes: Record<string, string>) => {
       if (!selectedElement) return;
 
-      const batch: Record<string, string> = { [property]: newValue };
+      const batch: Record<string, string> = { ...changes };
       if (
-        property === 'border-width' &&
+        batch['border-width'] !== undefined &&
+        !('border-style' in batch) &&
         (values['border-style'] ?? 'none') === 'none' &&
-        hasPositiveBorderWidth(newValue)
+        hasPositiveBorderWidth(batch['border-width'])
       ) {
         batch['border-style'] = 'solid';
       }
@@ -308,6 +329,13 @@ export function useEditPreview(
       }
     },
     [selectedElement, originalValues, values, pushUndo, upsertChange]
+  );
+
+  const updateProperty = useCallback(
+    (property: string, newValue: string) => {
+      updateProperties({ [property]: newValue });
+    },
+    [updateProperties]
   );
 
   const updateText = useCallback(
@@ -328,7 +356,7 @@ export function useEditPreview(
     const frame = undoStackRef.current.pop();
     if (!frame) return;
     restoreInlineStyles(frame.inline);
-    if (frame.text) restoreTextSnapshot(frame.text);
+    for (const snap of frame.text) restoreTextSnapshot(snap);
     setCanUndo(undoStackRef.current.length > 0);
 
     if (selectedElement) {
@@ -340,7 +368,7 @@ export function useEditPreview(
 
   const reset = useCallback(() => {
     restoreInlineStyles(initialInlineRef.current);
-    if (initialTextRef.current) restoreTextSnapshot(initialTextRef.current);
+    for (const snap of initialTextRef.current) restoreTextSnapshot(snap);
     undoStackRef.current = [];
     setCanUndo(false);
     setPendingByElement(new Map());
@@ -353,7 +381,7 @@ export function useEditPreview(
 
   const revertPreviews = useCallback(() => {
     restoreInlineStyles(initialInlineRef.current);
-    if (initialTextRef.current) restoreTextSnapshot(initialTextRef.current);
+    for (const snap of initialTextRef.current) restoreTextSnapshot(snap);
   }, []);
 
   const clearPreviews = useCallback(() => {
@@ -392,6 +420,7 @@ export function useEditPreview(
     clearAllPending,
     canUndo,
     updateProperty,
+    updateProperties,
     updateText,
     undo,
     reset,

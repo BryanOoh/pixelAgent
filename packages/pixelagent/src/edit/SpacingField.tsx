@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
+import { parsePx } from './propertyControls';
+import { clamp, useScrub } from './useScrub';
 
 interface SpacingFieldProps {
   property: 'margin' | 'padding';
@@ -139,9 +141,24 @@ interface CellProps {
   mixed?: boolean;
   /** Called on blur/Enter with the raw draft string. Caller normalizes. */
   onCommit: (raw: string) => void;
+  /** Current px value when the cell is a single number — enables drag/arrow scrub. */
+  scrubValue: number | null;
+  /** Lower bound for scrub (margin allows negatives, padding does not). */
+  scrubMin: number;
+  /** Called with the new integer px value during a scrub. */
+  onScrub: (next: number) => void;
 }
 
-function Cell({ icon, display, ariaLabel, mixed, onCommit }: CellProps) {
+function Cell({
+  icon,
+  display,
+  ariaLabel,
+  mixed,
+  onCommit,
+  scrubValue,
+  scrubMin,
+  onScrub,
+}: CellProps) {
   const [draft, setDraft] = useState(display);
 
   // Sync external value into draft (no focus tracking yet — accept the flicker
@@ -150,9 +167,25 @@ function Cell({ icon, display, ariaLabel, mixed, onCommit }: CellProps) {
     setDraft(display);
   }, [display]);
 
+  const scrub = useScrub({
+    getValue: () => scrubValue,
+    min: scrubMin,
+    step: 1,
+    onChange: onScrub,
+  });
+  const canScrub = scrubValue !== null;
+
   return (
     <label className={`pa-spacing-cell ${mixed ? 'pa-spacing-cell--mixed' : ''}`}>
-      <span className="pa-spacing-cell-icon">{icon}</span>
+      <span
+        className={`pa-spacing-cell-icon${canScrub ? ' pa-spacing-cell-icon--scrub' : ''}${
+          scrub.scrubbing ? ' pa-spacing-cell-icon--active' : ''
+        }`}
+        title={canScrub ? 'Drag to adjust' : undefined}
+        {...(canScrub ? scrub.handleProps : {})}
+      >
+        {icon}
+      </span>
       <input
         className="pa-input pa-spacing-cell-input"
         type="text"
@@ -161,9 +194,16 @@ function Cell({ icon, display, ariaLabel, mixed, onCommit }: CellProps) {
         onBlur={() => onCommit(draft)}
         onKeyDown={(e) => {
           if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
-          if (e.key === 'Escape') {
+          else if (e.key === 'Escape') {
             setDraft(display);
             (e.target as HTMLInputElement).blur();
+          } else if (
+            canScrub &&
+            (e.key === 'ArrowUp' || e.key === 'ArrowDown')
+          ) {
+            e.preventDefault();
+            const dir = e.key === 'ArrowUp' ? 1 : -1;
+            onScrub(clamp(scrubValue + dir, scrubMin, Infinity));
           }
         }}
         aria-label={ariaLabel}
@@ -175,7 +215,7 @@ function Cell({ icon, display, ariaLabel, mixed, onCommit }: CellProps) {
 
 // ── Field ─────────────────────────────────────────────────────────────────
 
-export function SpacingField({ label, value, onChange }: SpacingFieldProps) {
+export function SpacingField({ property, label, value, onChange }: SpacingFieldProps) {
   const sides = parseShorthand(value);
   // Pure user intent — pair view can show mixed values via comma notation,
   // so we never force-split based on data anymore.
@@ -187,6 +227,12 @@ export function SpacingField({ label, value, onChange }: SpacingFieldProps) {
 
   const horizontalMixed = sides.left !== sides.right;
   const verticalMixed = sides.top !== sides.bottom;
+
+  // Margins may go negative; padding cannot.
+  const scrubMin = property === 'margin' ? -Infinity : 0;
+  // A pair cell only scrubs when both sides share a single px value.
+  const pairScrubValue = (a: string, b: string) =>
+    a === b ? parsePx(a) : null;
 
   return (
     <div className="pa-prop-row pa-prop-row--compact pa-spacing-row">
@@ -206,24 +252,36 @@ export function SpacingField({ label, value, onChange }: SpacingFieldProps) {
               display={displayNum(sides.left)}
               ariaLabel={`${label} left`}
               onCommit={(raw) => writeSides({ left: normalizeWrite(raw) })}
+              scrubValue={parsePx(sides.left)}
+              scrubMin={scrubMin}
+              onScrub={(n) => writeSides({ left: `${n}px` })}
             />
             <Cell
               icon={<IconSide side="top" />}
               display={displayNum(sides.top)}
               ariaLabel={`${label} top`}
               onCommit={(raw) => writeSides({ top: normalizeWrite(raw) })}
+              scrubValue={parsePx(sides.top)}
+              scrubMin={scrubMin}
+              onScrub={(n) => writeSides({ top: `${n}px` })}
             />
             <Cell
               icon={<IconSide side="right" />}
               display={displayNum(sides.right)}
               ariaLabel={`${label} right`}
               onCommit={(raw) => writeSides({ right: normalizeWrite(raw) })}
+              scrubValue={parsePx(sides.right)}
+              scrubMin={scrubMin}
+              onScrub={(n) => writeSides({ right: `${n}px` })}
             />
             <Cell
               icon={<IconSide side="bottom" />}
               display={displayNum(sides.bottom)}
               ariaLabel={`${label} bottom`}
               onCommit={(raw) => writeSides({ bottom: normalizeWrite(raw) })}
+              scrubValue={parsePx(sides.bottom)}
+              scrubMin={scrubMin}
+              onScrub={(n) => writeSides({ bottom: `${n}px` })}
             />
           </div>
         ) : (
@@ -237,6 +295,9 @@ export function SpacingField({ label, value, onChange }: SpacingFieldProps) {
                 const [left, right] = parsePairCommit(raw, sides.left);
                 writeSides({ left, right });
               }}
+              scrubValue={pairScrubValue(sides.left, sides.right)}
+              scrubMin={scrubMin}
+              onScrub={(n) => writeSides({ left: `${n}px`, right: `${n}px` })}
             />
             <Cell
               icon={<IconVerticalPair />}
@@ -247,6 +308,9 @@ export function SpacingField({ label, value, onChange }: SpacingFieldProps) {
                 const [top, bottom] = parsePairCommit(raw, sides.top);
                 writeSides({ top, bottom });
               }}
+              scrubValue={pairScrubValue(sides.top, sides.bottom)}
+              scrubMin={scrubMin}
+              onScrub={(n) => writeSides({ top: `${n}px`, bottom: `${n}px` })}
             />
           </div>
         )}

@@ -1,9 +1,12 @@
+import { useState } from 'react';
 import type { ElementState, TargetScope, TextEditKind } from '@pixelagent/shared';
 import { ColorField } from './ColorField';
 import { EditSection } from './EditSection';
 import { FontFamilySelect } from './FontFamilySelect';
 import { PropertyField } from './PropertyField';
 import { SpacingField } from './SpacingField';
+import { TextStylesPopover } from './TextStylesPopover';
+import { readTypographyPresets, type TypographyPreset } from './typographyPresets';
 import { MultiSegmentedControl, SegmentedControl } from './SegmentedControl';
 import {
   IconAlignCenter,
@@ -52,6 +55,7 @@ const FLEX_GRID_DISPLAYS = new Set(['flex', 'inline-flex', 'grid', 'inline-grid'
 export interface EditPropertiesPanelProps {
   values: Record<string, string>;
   onPropertyChange: (property: string, value: string) => void;
+  onApplyPreset: (changes: Record<string, string>) => void;
   textKind: TextEditKind;
   textValue: string;
   onTextChange: (value: string) => void;
@@ -67,6 +71,7 @@ export interface EditPropertiesPanelProps {
 export function EditPropertiesPanel({
   values,
   onPropertyChange,
+  onApplyPreset,
   textKind,
   textValue,
   onTextChange,
@@ -78,6 +83,17 @@ export function EditPropertiesPanel({
   scopeHint,
   stateHint,
 }: EditPropertiesPanelProps) {
+  // Type scale tokens are static per page — read the document's CSS custom
+  // properties once when the panel mounts.
+  const [typographyPresets] = useState<TypographyPreset[]>(() => readTypographyPresets());
+
+  const applyTypographyPreset = (preset: TypographyPreset) => {
+    const changes: Record<string, string> = { 'font-size': preset.fontSize };
+    if (preset.lineHeight) changes['line-height'] = preset.lineHeight;
+    if (preset.fontWeight) changes['font-weight'] = preset.fontWeight;
+    onApplyPreset(changes);
+  };
+
   const fontWeight = values['font-weight'] ?? '';
   const fontStyle = values['font-style'] ?? 'normal';
   const textDecoration = values['text-decoration'] ?? 'none';
@@ -155,7 +171,18 @@ export function EditPropertiesPanel({
         </EditSection>
       )}
 
-      <EditSection title="Typography" defaultOpen>
+      <EditSection
+        title="Typography"
+        defaultOpen
+        headerAction={
+          <TextStylesPopover
+            presets={typographyPresets}
+            fontSize={values['font-size'] ?? ''}
+            lineHeight={values['line-height'] ?? ''}
+            onApply={applyTypographyPreset}
+          />
+        }
+      >
         <FontFamilySelect
           value={values['font-family'] ?? ''}
           onChange={(v) => onPropertyChange('font-family', v)}
@@ -359,7 +386,7 @@ export function EditPropertiesPanel({
         <PropertyField
           compact
           property="border-width"
-          label="Stroke width (px)"
+          label="Width (px)"
           value={values['border-width'] ?? ''}
           onChange={(v) => onPropertyChange('border-width', v)}
         />

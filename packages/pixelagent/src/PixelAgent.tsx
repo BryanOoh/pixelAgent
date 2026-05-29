@@ -214,7 +214,7 @@ export function PixelAgent({
   const [pendingAnnotation, setPendingAnnotation] = useState<PendingAnnotation | null>(null);
   const [areaDrag, setAreaDrag] = useState<AreaDragState | null>(null);
   const [sessionDismissed, setSessionDismissed] = useState(false);
-  const [sessionCollapsed, setSessionCollapsed] = useState(false);
+  const [activeAnnotationId, setActiveAnnotationId] = useState<string | null>(null);
 
   const sessionVisible =
     active && mode === 'annotate' && annotations.length > 0 && !sessionDismissed;
@@ -379,7 +379,6 @@ export function PixelAgent({
 
       setAnnotations((prev) => [...prev, entry]);
       setSessionDismissed(false);
-      setSessionCollapsed(false);
 
       if (continuous) {
         setPendingAnnotation(null);
@@ -496,6 +495,7 @@ export function PixelAgent({
     setPendingAnnotation(null);
     setMultiSelected([]);
     setAreaDrag(null);
+    setActiveAnnotationId(null);
     if (nextMode === 'annotate') setSessionDismissed(false);
   };
 
@@ -508,7 +508,7 @@ export function PixelAgent({
     setMultiSelected([]);
     setAreaDrag(null);
     setSessionDismissed(false);
-    setSessionCollapsed(false);
+    setActiveAnnotationId(null);
   };
 
   const areaRect = areaDrag ? normalizeAreaRect(areaDrag) : null;
@@ -552,7 +552,11 @@ export function PixelAgent({
             selected={selectedElement}
             multiSelected={multiSelected}
           />
-          <AnnotationBadgesOverlay annotations={annotations} />
+          <AnnotationBadgesOverlay
+            annotations={annotations}
+            activeId={activeAnnotationId}
+            onActiveChange={setActiveAnnotationId}
+          />
           <AreaSelectOverlay area={areaRect} isDragging={!!areaDrag} />
         </>
       )}
@@ -585,16 +589,13 @@ export function PixelAgent({
       {sessionVisible && (
         <SessionPanel
           annotations={annotations}
-          collapsed={sessionCollapsed}
-          onToggleCollapsed={() => setSessionCollapsed((c) => !c)}
-          onClose={() => {
-            setSessionDismissed(true);
-            setSessionCollapsed(false);
-          }}
+          onClose={() => setSessionDismissed(true)}
           onCopyAll={() => copyAllAnnotations('session')}
           onCopyOne={copyOneAnnotation}
           onRemove={removeAnnotation}
           onUpdate={updateAnnotation}
+          activeId={activeAnnotationId}
+          onActiveChange={setActiveAnnotationId}
           copyStatus={copyStatus}
           copiedEntryId={copiedEntryId}
           copyAllFrom={copyAllFrom}

@@ -72,6 +72,29 @@ export function applyChangeToRuleBody(
   return { body: newBody, changed: true };
 }
 
+/**
+ * Build a `.class:state { … }` block and splice it into the stylesheet —
+ * right after the base class rule when present (for locality) or at end of
+ * file otherwise. Used when a pseudo-state edit has no existing rule to patch;
+ * creating a dedicated rule keeps the change out of the resting/normal style.
+ */
+export function insertStateRule(
+  css: string,
+  className: string,
+  ruleKey: string,
+  changes: StyleChange[]
+): string {
+  const decls = changes.map((c) => `  ${c.property}: ${c.newValue};`).join('\n');
+  const block = `.${ruleKey} {\n${decls}\n}`;
+
+  const baseRule = findCssRule(css, className);
+  if (baseRule) {
+    return `${css.slice(0, baseRule.end)}\n\n${block}${css.slice(baseRule.end)}`;
+  }
+  const sep = css.length === 0 || css.endsWith('\n') ? '\n' : '\n\n';
+  return `${css}${sep}${block}\n`;
+}
+
 export function computeChangedLines(before: string, after: string): number[] {
   const beforeLines = before.split('\n');
   const afterLines = after.split('\n');

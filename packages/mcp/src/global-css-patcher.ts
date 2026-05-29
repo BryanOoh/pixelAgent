@@ -7,6 +7,7 @@ import {
   computeChangedLines,
   extractPrimaryClass,
   findCssRule,
+  insertStateRule,
 } from './css-rule-utils.js';
 import { cssRuleKey, type PatchContext } from './patch-context.js';
 
@@ -51,44 +52,56 @@ export async function patchGlobalCssFile(
   const cssAbsPath = assertWithinProject(projectRoot, cssRelPath);
   const cssContent = await readFile(cssAbsPath, 'utf-8');
   const ruleKey = cssRuleKey(className, ctx);
-  const rule = resolveCssRule(cssContent, ruleKey, className);
-  if (!rule) {
-    return {
-      patchedFile: cssRelPath,
-      linesChanged: [],
-      warnings: [`SOURCE_NOT_FOUND: No .${ruleKey} rule in ${cssRelPath}`],
-    };
-  }
+  const isStateRule = ruleKey !== className;
+  const rule = findCssRule(cssContent, ruleKey);
 
-  const warnings: string[] = [];
-  let newBody = rule.body;
+  // Existing rule (the base class rule, or an already-present `:state` rule):
+  // patch the matching declarations in place.
+  if (rule) {
+    const warnings: string[] = [];
+    let newBody = rule.body;
 
-  for (const change of changes) {
-    const updated = applyChangeToRuleBody(newBody, change);
-    if (updated.changed) {
-      newBody = updated.body;
-    } else if (updated.warning) {
-      warnings.push(updated.warning);
+    for (const change of changes) {
+      const updated = applyChangeToRuleBody(newBody, change);
+      if (updated.changed) {
+        newBody = updated.body;
+      } else if (updated.warning) {
+        warnings.push(updated.warning);
+      }
     }
-  }
 
-  const newContent =
-    cssContent.slice(0, rule.start) + newBody + cssContent.slice(rule.end);
+    const newContent =
+      cssContent.slice(0, rule.start) + newBody + cssContent.slice(rule.end);
 
-  if (newContent === cssContent) {
+    if (newContent === cssContent) {
+      return { patchedFile: cssRelPath, linesChanged: [], warnings };
+    }
+
+    await writeFile(cssAbsPath, newContent, 'utf-8');
     return {
       patchedFile: cssRelPath,
-      linesChanged: [],
+      linesChanged: computeChangedLines(cssContent, newContent),
       warnings,
     };
   }
 
-  await writeFile(cssAbsPath, newContent, 'utf-8');
+  // No matching rule. For a pseudo-state, CREATE a new `.class:state { … }`
+  // rule instead of falling back to the base class — writing a hover/focus/etc.
+  // change into the resting rule would corrupt the normal state.
+  if (isStateRule) {
+    const newContent = insertStateRule(cssContent, className, ruleKey, changes);
+    await writeFile(cssAbsPath, newContent, 'utf-8');
+    return {
+      patchedFile: cssRelPath,
+      linesChanged: computeChangedLines(cssContent, newContent),
+      warnings: [],
+    };
+  }
 
   return {
     patchedFile: cssRelPath,
-    linesChanged: computeChangedLines(cssContent, newContent),
-    warnings,
+    linesChanged: [],
+    warnings: [`SOURCE_NOT_FOUND: No .${ruleKey} rule in ${cssRelPath}`],
   };
 }
 
@@ -102,10 +115,6 @@ async function findStylesheetForClass(
   }
 
   return walkForRule(join(projectRoot, 'packages'), className, projectRoot, 0, 4);
-}
-
-function resolveCssRule(css: string, ruleKey: string, className: string) {
-  return findCssRule(css, ruleKey) ?? findCssRule(css, className);
 }
 
 async function fileContainsRule(

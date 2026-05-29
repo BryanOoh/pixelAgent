@@ -1,8 +1,13 @@
+import type { KeyboardEvent } from 'react';
 import {
+  formatLength,
   formatSliderValue,
+  parseLength,
   PROP_CONTROLS,
   sliderValueForProperty,
+  stepForUnit,
 } from './propertyControls';
+import { clamp, useScrub } from './useScrub';
 
 interface PropertyFieldProps {
   property: string;
@@ -22,12 +27,12 @@ export function PropertyField({
 }: PropertyFieldProps) {
   const config = PROP_CONTROLS[property] ?? { kind: 'text' as const };
   const numeric = sliderValueForProperty(property, value, config);
-  const useSlider = config.kind !== 'text' && numeric !== null;
+  const scrubbable = config.kind !== 'text' && numeric !== null;
 
   const rowClass = compact ? 'pa-prop-row pa-prop-row--compact' : 'pa-prop-row';
   const labelClass = compact ? 'pa-edit-field-label' : 'pa-prop-label';
 
-  if (!useSlider) {
+  if (!scrubbable) {
     return (
       <label className={rowClass}>
         <span className={labelClass}>{label}</span>
@@ -41,36 +46,58 @@ export function PropertyField({
     );
   }
 
-  const min = config.min ?? 0;
-  const max = config.max ?? 100;
-  const step = config.step ?? 1;
+  const min = config.min ?? -Infinity;
+  const max = config.max ?? Infinity;
+  // Length values scrub in their own unit (px/%/em…); step adapts so unitless
+  // line-height nudges by 0.1 while px nudges by 1.
+  const isLength = config.kind === 'length';
+  const step = isLength
+    ? stepForUnit(parseLength(value)?.unit ?? '')
+    : config.step ?? 1;
 
-  const handleSlider = (next: number) => {
-    onChange(formatSliderValue(property, next, config));
+  const commit = (next: number) =>
+    onChange(
+      isLength
+        ? formatLength(value, next)
+        : formatSliderValue(property, next, config)
+    );
+
+  const scrub = useScrub({
+    getValue: () => sliderValueForProperty(property, value, config),
+    min,
+    max,
+    step,
+    onChange: commit,
+    pxPerStep: config.kind === 'opacity' ? 2 : 3,
+  });
+
+  const handleArrows = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
+    const base = sliderValueForProperty(property, value, config);
+    if (base === null) return;
+    e.preventDefault();
+    const dir = e.key === 'ArrowUp' ? 1 : -1;
+    commit(clamp(base + dir * step, min, max));
   };
 
   return (
-    <label className={`${rowClass} pa-prop-row--slider`}>
-      <span className={labelClass}>{label}</span>
-      <div className="pa-prop-slider-wrap">
-        <input
-          type="range"
-          className="pa-slider"
-          min={min}
-          max={max}
-          step={step}
-          value={numeric}
-          aria-valuetext={value}
-          onChange={(e) => handleSlider(parseFloat(e.target.value))}
-        />
-        <input
-          className="pa-input pa-prop-slider-value"
-          type="text"
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          aria-label={`${label} value`}
-        />
-      </div>
-    </label>
+    <div className={rowClass}>
+      <span
+        className={`${labelClass} pa-scrub-label${scrub.scrubbing ? ' pa-scrub-label--active' : ''}`}
+        title="Drag to adjust"
+        {...scrub.handleProps}
+      >
+        {label}
+      </span>
+      <input
+        className="pa-input pa-prop-scrub-value"
+        type="text"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        onKeyDown={handleArrows}
+        aria-label={`${label} value`}
+        spellCheck={false}
+      />
+    </div>
   );
 }

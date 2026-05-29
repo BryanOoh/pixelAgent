@@ -147,7 +147,8 @@ export async function applyVisualDiff(
       projectRoot,
       filePath,
       line,
-      styleChanges
+      styleChanges,
+      patchCtx
     );
     if (cssResult) {
       warnings.push(...cssResult.warnings);

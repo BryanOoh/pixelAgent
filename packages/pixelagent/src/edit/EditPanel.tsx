@@ -58,6 +58,7 @@ export function EditPanel({
     clearAllPending,
     canUndo,
     updateProperty,
+    updateProperties,
     updateText,
     undo,
     reset,
@@ -222,6 +223,7 @@ export function EditPanel({
                   <EditPropertiesPanel
                     values={values}
                     onPropertyChange={updateProperty}
+                    onApplyPreset={updateProperties}
                     textKind={textKind}
                     textValue={textValue}
                     onTextChange={updateText}

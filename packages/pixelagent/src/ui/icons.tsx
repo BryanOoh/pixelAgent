@@ -39,3 +39,31 @@ export function MoonIcon() {
     </svg>
   );
 }
+
+export function TrashIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <path
+        d="M3.25 4.75h9.5M6.5 4.75v-1A.75.75 0 0 1 7.25 3h1.5a.75.75 0 0 1 .75.75v1"
+        stroke="currentColor"
+        strokeWidth="1.35"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M4.5 4.75l.65 7.65a1 1 0 0 0 1 .9h3.7a1 1 0 0 0 1-.9l.65-7.65"
+        stroke="currentColor"
+        strokeWidth="1.35"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M6.75 6.75v4.5M9.25 6.75v4.5"
+        stroke="currentColor"
+        strokeWidth="1.35"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}

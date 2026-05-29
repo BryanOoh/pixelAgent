@@ -2,6 +2,29 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.23] - 2026-05-28
+
+### Added
+
+- **Text styles picker** in the Edit panel's Typography section. A "styles
+  library" icon button opens a searchable popover of typography presets
+  (Figma-style), each applying `font-size` / `line-height` / `font-weight` as a
+  single batched edit. Presets are derived live from the page's own CSS custom
+  properties — Tailwind v4 `--text-<key>` (+ `--text-<key>--line-height` /
+  `--text-<key>--font-weight`) and the semantic `--font-size-<key>` /
+  `--leading-<key>` conventions — so the list reflects the project's real type
+  scale. When no type tokens are found, the control hides itself.
+- **Drag-to-adjust (scrub)** on numeric Edit fields — drag a field's label
+  horizontally to change its value, Figma-style.
+
+### Changed
+
+- Edit panel section headers refreshed: rounded SVG accordion chevron (down when
+  collapsed, up when open) and support for an icon action between the section
+  title and the chevron.
+- Hardened the MCP CSS patchers (`css-modules` and `global-css`) with expanded
+  test coverage.
+
 ## [0.1.22] - 2026-05-28
 
 ### Changed
