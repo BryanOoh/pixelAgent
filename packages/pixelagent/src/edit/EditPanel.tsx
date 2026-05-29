@@ -221,6 +221,7 @@ export function EditPanel({
 
                 <div className="pa-edit-panel-scroll">
                   <EditPropertiesPanel
+                    selectedElement={selectedElement}
                     values={values}
                     onPropertyChange={updateProperty}
                     onApplyPreset={updateProperties}

@@ -2,6 +2,32 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.24] - 2026-05-29
+
+### Added
+
+- **Element-type-aware section auto-open** in the Edit panel. Selecting an
+  element now expands only the sections that matter for its type (at most two)
+  instead of opening everything: editable text → Content + Typography;
+  headings, links, list items and other text tags → Typography; buttons and
+  form controls → Layout + Typography; images / SVG / other media → Layout;
+  containers → Layout plus Border or Fill when a visible stroke or background is
+  present; `<hr>` → Border. Targeting stays collapsed — it is meta, not visual
+  styling.
+
+### Changed
+
+- `EditSection` now defaults to collapsed; the Edit panel decides which sections
+  open per selected element (see above).
+
+### Fixed
+
+- Section auto-open no longer reflects the *previously* selected element. The
+  defaults are derived from the element selected on the current render (reading
+  the live DOM directly) rather than from the panel's `textKind` / `values`
+  state, which arrives a render late — so a bordered container now reliably
+  opens Layout + Border regardless of what was selected before it.
+
 ## [0.1.23] - 2026-05-28
 
 ### Added

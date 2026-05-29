@@ -1,5 +1,7 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import type { ElementState, TargetScope, TextEditKind } from '@pixelagent/shared';
+import { getCssSelector, getEditableTextInfo, getRelevantComputedStyles } from '@pixelagent/shared';
+import { getDefaultOpenSections, isSectionOpen } from './editSectionDefaults.js';
 import { ColorField } from './ColorField';
 import { EditSection } from './EditSection';
 import { FontFamilySelect } from './FontFamilySelect';
@@ -53,6 +55,7 @@ const DISPLAY_OPTIONS = [
 const FLEX_GRID_DISPLAYS = new Set(['flex', 'inline-flex', 'grid', 'inline-grid']);
 
 export interface EditPropertiesPanelProps {
+  selectedElement: Element;
   values: Record<string, string>;
   onPropertyChange: (property: string, value: string) => void;
   onApplyPreset: (changes: Record<string, string>) => void;
@@ -69,6 +72,7 @@ export interface EditPropertiesPanelProps {
 }
 
 export function EditPropertiesPanel({
+  selectedElement,
   values,
   onPropertyChange,
   onApplyPreset,
@@ -120,9 +124,27 @@ export function EditPropertiesPanel({
     borderStyleOptions.push(borderStyle);
   }
 
+  const sectionsResetKey = getCssSelector(selectedElement);
+  // Defaults must reflect the element selected THIS render. `textKind`/`values`
+  // arrive a render late (set in an effect in useEditPreview), while the reset
+  // key above changes synchronously — so feeding the props here would remount
+  // the sections with the *previous* element's text-kind and styles. Read the
+  // DOM directly so the remount picks correct defaults for the new element.
+  const defaultOpenSections = useMemo(
+    () =>
+      getDefaultOpenSections(
+        selectedElement,
+        getEditableTextInfo(selectedElement).kind,
+        getRelevantComputedStyles(selectedElement)
+      ),
+    [selectedElement]
+  );
+  const sectionOpen = (id: 'targeting' | 'content' | 'typography' | 'layout' | 'fill' | 'border') =>
+    isSectionOpen(defaultOpenSections, id);
+
   return (
-    <div className="pa-edit-sections">
-      <EditSection title="Targeting" defaultOpen>
+    <div className="pa-edit-sections" key={sectionsResetKey}>
+      <EditSection title="Targeting" defaultOpen={sectionOpen('targeting')}>
         <div className="pa-edit-field-grid pa-edit-field-grid--2">
           <label className="pa-edit-mini-field">
             <span className="pa-edit-field-label">Scope</span>
@@ -157,7 +179,7 @@ export function EditPropertiesPanel({
       </EditSection>
 
       {textKind !== 'none' && (
-        <EditSection title="Content" defaultOpen>
+        <EditSection title="Content" defaultOpen={sectionOpen('content')}>
           <label className="pa-edit-stack-field">
             <span className="pa-edit-field-label">Text</span>
             <textarea
@@ -173,7 +195,7 @@ export function EditPropertiesPanel({
 
       <EditSection
         title="Typography"
-        defaultOpen
+        defaultOpen={sectionOpen('typography')}
         headerAction={
           <TextStylesPopover
             presets={typographyPresets}
@@ -292,7 +314,7 @@ export function EditPropertiesPanel({
         />
       </EditSection>
 
-      <EditSection title="Layout" defaultOpen>
+      <EditSection title="Layout" defaultOpen={sectionOpen('layout')}>
         <div className="pa-edit-split-fields">
           <PropertyField
             compact
@@ -348,7 +370,7 @@ export function EditPropertiesPanel({
         )}
       </EditSection>
 
-      <EditSection title="Fill">
+      <EditSection title="Fill" defaultOpen={sectionOpen('fill')}>
         <ColorField
           label="Background"
           value={values['background-color'] ?? ''}
@@ -363,7 +385,7 @@ export function EditPropertiesPanel({
         />
       </EditSection>
 
-      <EditSection title="Border" defaultOpen>
+      <EditSection title="Border" defaultOpen={sectionOpen('border')}>
         <ColorField
           label="Border color"
           value={values['border-color'] ?? ''}

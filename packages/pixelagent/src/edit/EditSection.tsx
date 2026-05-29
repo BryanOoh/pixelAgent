@@ -12,7 +12,7 @@ interface EditSectionProps {
 export function EditSection({
   title,
   children,
-  defaultOpen = true,
+  defaultOpen = false,
   badge,
   headerAction,
 }: EditSectionProps) {
