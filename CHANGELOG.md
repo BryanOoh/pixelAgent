@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.25] - 2026-06-06
+
+### Added
+
+- **Color token picker** on the Edit panel's Color fields. A swatches icon next
+  to **Text color** (Typography), **Fill / Background** (Fill), and **Border
+  color** (Border) opens a searchable popover of the page's color design tokens
+  (any CSS custom property whose value is a color), each rendered as a swatch +
+  name + value. Selecting one applies it; the active color is auto-highlighted.
+  Mirrors the Text styles picker and hides itself when no color tokens exist.
+
 ## [0.1.24] - 2026-05-29
 
 ### Added

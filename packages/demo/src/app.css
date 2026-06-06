@@ -4,51 +4,51 @@
 [data-theme='dark'] {
   color-scheme: dark;
 
-  --color-canvas: #0a0a0a;
-  --color-canvas-soft: #1a1c20;
-  --color-canvas-card: #191919;
-  --color-canvas-mid: #363a3f;
-  --color-hairline: #212327;
+  --color-surface: #0a0a0a;
+  --color-surface-overlay: #1a1c20;
+  --color-surface-raised: #191919;
+  --color-background-neutral: #363a3f;
+  --color-border: #212327;
 
-  --color-ink: #ffffff;
-  --color-body: #dadbdf;
-  --color-body-mid: #7d8187;
-  --color-body-dim: #5a5e64;
+  --color-text: #ffffff;
+  --color-text-subtle: #dadbdf;
+  --color-text-subtlest: #7d8187;
+  --color-text-disabled: #5a5e64;
 
-  --color-accent-sunset: #ff7a17;
-  --color-accent-sunset-soft: #ffc285;
-  --color-on-primary: #0a0a0a;
+  --color-background-brand-bold: #ff7a17;
+  --color-text-brand: #ffc285;
+  --color-text-inverse: #0a0a0a;
 
-  --border-outline: rgba(255, 255, 255, 0.25);
+  --color-border-bold: rgba(255, 255, 255, 0.25);
 
-  --tok-keyword: #93c5fd;
-  --tok-string: #fca5a5;
-  --tok-line-highlight-bg: rgba(34, 197, 94, 0.12);
+  --code-keyword: #93c5fd;
+  --code-string: #fca5a5;
+  --code-highlight: rgba(34, 197, 94, 0.12);
 }
 
 [data-theme='light'] {
   color-scheme: light;
 
-  --color-canvas: #fafaf9;
-  --color-canvas-soft: #f4f4f5;
-  --color-canvas-card: #ffffff;
-  --color-canvas-mid: #e4e4e7;
-  --color-hairline: #e4e4e7;
+  --color-surface: #fafaf9;
+  --color-surface-overlay: #f4f4f5;
+  --color-surface-raised: #ffffff;
+  --color-background-neutral: #e4e4e7;
+  --color-border: #e4e4e7;
 
-  --color-ink: #0a0a0a;
-  --color-body: #3f3f46;
-  --color-body-mid: #71717a;
-  --color-body-dim: #a1a1aa;
+  --color-text: #0a0a0a;
+  --color-text-subtle: #3f3f46;
+  --color-text-subtlest: #71717a;
+  --color-text-disabled: #a1a1aa;
 
-  --color-accent-sunset: #ea580c;
-  --color-accent-sunset-soft: #c2410c;
-  --color-on-primary: #ffffff;
+  --color-background-brand-bold: #ea580c;
+  --color-text-brand: #c2410c;
+  --color-text-inverse: #ffffff;
 
-  --border-outline: rgba(10, 10, 10, 0.18);
+  --color-border-bold: rgba(10, 10, 10, 0.18);
 
-  --tok-keyword: #1d4ed8;
-  --tok-string: #b91c1c;
-  --tok-line-highlight-bg: rgba(34, 197, 94, 0.18);
+  --code-keyword: #1d4ed8;
+  --code-string: #b91c1c;
+  --code-highlight: rgba(34, 197, 94, 0.18);
 }
 
 :root {
@@ -121,22 +121,22 @@ body {
   font-weight: 400;
   font-size: 16px;
   line-height: 24px;
-  background: var(--color-canvas);
-  color: var(--color-ink);
+  background: var(--color-surface);
+  color: var(--color-text);
   -webkit-font-smoothing: antialiased;
 }
 
 .site-app {
   min-height: 100vh;
-  background: var(--color-canvas);
+  background: var(--color-surface);
 }
 
 .site-nav {
   position: sticky;
   top: 0;
   z-index: 10;
-  background: var(--color-canvas);
-  border-bottom: 1px solid var(--color-hairline);
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
 }
 
 .site-nav-inner {
@@ -157,7 +157,7 @@ body {
   font-size: 18px;
   font-weight: 400;
   letter-spacing: -0.02em;
-  color: var(--color-ink);
+  color: var(--color-text);
   text-decoration: none;
 }
 
@@ -181,7 +181,7 @@ body {
 .site-nav-link {
   font-size: 14px;
   line-height: 20px;
-  color: var(--color-ink);
+  color: var(--color-text);
   text-decoration: none;
 }
 
@@ -201,15 +201,15 @@ body {
   justify-content: center;
   width: 36px;
   height: 36px;
-  color: var(--color-body-mid);
+  color: var(--color-text-subtlest);
   border-radius: var(--radius-pill);
-  border: 1px solid var(--border-outline);
+  border: 1px solid var(--color-border-bold);
   transition: color 150ms ease, background 150ms ease;
 }
 
 .site-theme-toggle:hover {
-  color: var(--color-ink);
-  background: var(--color-canvas-soft);
+  color: var(--color-text);
+  background: var(--color-surface-overlay);
 }
 
 @media (min-width: 900px) {
@@ -240,14 +240,14 @@ body {
 }
 
 .site-btn-outline {
-  color: var(--color-ink);
-  border: 1px solid var(--border-outline);
+  color: var(--color-text);
+  border: 1px solid var(--color-border-bold);
 }
 
 .site-btn-primary {
-  color: var(--color-on-primary);
-  background: var(--color-ink);
-  border: 1px solid var(--color-ink);
+  color: var(--color-text-inverse);
+  background: var(--color-text);
+  border: 1px solid var(--color-text);
 }
 
 .site-btn-primary:hover {
@@ -288,8 +288,8 @@ body {
 }
 
 .site-badge-outline {
-  color: var(--color-ink);
-  border: 1px solid var(--border-outline);
+  color: var(--color-text);
+  border: 1px solid var(--color-border-bold);
 }
 
 .site-badge-beta {
@@ -297,7 +297,7 @@ body {
   font-size: 12px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--color-accent-sunset-soft);
+  color: var(--color-text-brand);
   border: 1px solid rgba(255, 122, 23, 0.45);
 }
 
@@ -317,7 +317,7 @@ body {
 }
 
 .site-hero-title-dim {
-  color: var(--color-body-mid);
+  color: var(--color-text-subtlest);
   font-weight: 400;
   font-style: normal;
   text-decoration: none;
@@ -328,7 +328,7 @@ body {
   max-width: 560px;
   font-size: 18px;
   line-height: 28px;
-  color: var(--color-body);
+  color: var(--color-text-subtle);
 }
 
 .site-install-pill {
@@ -340,8 +340,8 @@ body {
   padding: var(--space-md) var(--space-lg);
   margin-bottom: var(--space-xl);
   border-radius: var(--radius-pill);
-  background: var(--color-canvas-card);
-  border: 1px solid var(--color-hairline);
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-border);
 }
 
 .site-install-cmd {
@@ -353,12 +353,12 @@ body {
   font-family: var(--font-mono);
   font-size: 13px;
   line-height: 20px;
-  color: var(--color-body);
+  color: var(--color-text-subtle);
   text-align: left;
 }
 
 .site-install-prompt {
-  color: var(--color-body-mid);
+  color: var(--color-text-subtlest);
 }
 
 .site-install-copy {
@@ -370,13 +370,13 @@ body {
   justify-content: center;
   width: 32px;
   height: 32px;
-  color: var(--color-body-mid);
+  color: var(--color-text-subtlest);
   border-radius: var(--radius-sm);
   transition: color 150ms ease;
 }
 
 .site-install-copy:hover {
-  color: var(--color-ink);
+  color: var(--color-text);
 }
 
 .site-hero-ctas {
@@ -394,7 +394,7 @@ body {
 .site-divider {
   margin: var(--space-4xl) 0;
   border: none;
-  border-top: 1px solid var(--color-hairline);
+  border-top: 1px solid var(--color-border);
 }
 
 .site-skills {
@@ -420,14 +420,14 @@ body {
   font-weight: 400;
   line-height: 36px;
   letter-spacing: -0.02em;
-  color: var(--color-ink);
+  color: var(--color-text);
 }
 
 .site-skills-body {
   margin: 0 0 var(--space-xl);
   font-size: 16px;
   line-height: 24px;
-  color: var(--color-body-mid);
+  color: var(--color-text-subtlest);
 }
 
 .site-skills-list {
@@ -445,19 +445,19 @@ body {
   gap: var(--space-sm);
   font-size: 14px;
   line-height: 20px;
-  color: var(--color-body);
+  color: var(--color-text-subtle);
 }
 
 .site-skills-list svg {
   flex-shrink: 0;
   margin-top: 3px;
-  color: var(--color-body-mid);
+  color: var(--color-text-subtlest);
 }
 
 .site-terminal {
   border-radius: var(--radius-sm);
-  background: var(--color-canvas-card);
-  border: 1px solid var(--color-hairline);
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-border);
   overflow: hidden;
 }
 
@@ -466,8 +466,8 @@ body {
   align-items: center;
   gap: var(--space-md);
   padding: var(--space-md) var(--space-lg);
-  border-bottom: 1px solid var(--color-hairline);
-  background: var(--color-canvas-soft);
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface-overlay);
 }
 
 .site-terminal-dots {
@@ -501,14 +501,14 @@ body {
   white-space: nowrap;
   font-family: var(--font-mono);
   font-size: 12px;
-  color: var(--color-body-mid);
+  color: var(--color-text-subtlest);
 }
 
 .site-terminal-progress {
   flex-shrink: 0;
   font-family: var(--font-mono);
   font-size: 12px;
-  color: var(--color-body-dim);
+  color: var(--color-text-disabled);
 }
 
 .site-terminal-body {
@@ -520,7 +520,7 @@ body {
   font-family: var(--font-mono);
   font-size: 13px;
   line-height: 20px;
-  color: var(--color-ink);
+  color: var(--color-text);
 }
 
 .site-terminal-log {
@@ -531,11 +531,11 @@ body {
   font-family: var(--font-mono);
   font-size: 13px;
   line-height: 20px;
-  color: var(--color-body-mid);
+  color: var(--color-text-subtlest);
 }
 
 .site-terminal-file {
-  color: var(--color-body);
+  color: var(--color-text-subtle);
 }
 
 .site-status-dot {
@@ -550,14 +550,14 @@ body {
 }
 
 .site-status-dot--amber {
-  background: var(--color-accent-sunset);
+  background: var(--color-background-brand-bold);
 }
 
 .site-terminal-code {
   margin: var(--space-md) 0 0;
   padding: var(--space-md);
   border-radius: var(--radius-sm);
-  background: var(--color-canvas-mid);
+  background: var(--color-background-neutral);
   overflow-x: auto;
   font-family: var(--font-mono);
   font-size: 12px;
@@ -570,7 +570,7 @@ body {
 }
 
 .tok-keyword {
-  color: var(--tok-keyword);
+  color: var(--code-keyword);
 }
 
 .tok-type {
@@ -582,7 +582,7 @@ body {
 }
 
 .tok-string {
-  color: var(--tok-string);
+  color: var(--code-string);
 }
 
 .tok-number {
@@ -590,26 +590,26 @@ body {
 }
 
 .tok-plain {
-  color: var(--color-body);
+  color: var(--color-text-subtle);
 }
 
 .tok-line-highlight {
   display: block;
   margin: 0 -12px;
   padding: 0 12px;
-  background: var(--tok-line-highlight-bg);
+  background: var(--code-highlight);
 }
 
 .tok-comment {
-  color: var(--color-body-dim);
+  color: var(--color-text-disabled);
 }
 
 .site-terminal-status {
   padding: var(--space-sm) var(--space-lg);
-  border-top: 1px solid var(--color-hairline);
+  border-top: 1px solid var(--color-border);
   font-family: var(--font-mono);
   font-size: 12px;
   line-height: 16px;
-  color: var(--color-body-dim);
-  background: var(--color-canvas-soft);
+  color: var(--color-text-disabled);
+  background: var(--color-surface-overlay);
 }

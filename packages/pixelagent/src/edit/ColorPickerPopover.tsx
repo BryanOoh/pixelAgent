@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useRef, useState, type MouseEvent as ReactMouseEvent } from 'react';
+import { useCallback, useEffect, useId, useRef, useState, type MouseEvent as ReactMouseEvent, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import type { Hsv, Rgb } from './colorModel.js';
 import {
@@ -16,6 +16,8 @@ interface ColorPickerPopoverProps {
   label: string;
   value: string;
   onChange: (value: string) => void;
+  /** Optional control rendered to the right of the field label (e.g. a token picker). */
+  labelAction?: ReactNode;
 }
 
 function cssFromHsv(hsv: Hsv): string {
@@ -41,7 +43,7 @@ function getPickerPortalRootAttributes(): Record<string, string> {
   return chrome ? { 'data-pa-chrome': chrome } : {};
 }
 
-export function ColorPickerPopover({ label, value, onChange }: ColorPickerPopoverProps) {
+export function ColorPickerPopover({ label, value, onChange, labelAction }: ColorPickerPopoverProps) {
   const [open, setOpen] = useState(false);
   const [hsv, setHsv] = useState<Hsv>(() => hsvFromCss(value));
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -237,7 +239,14 @@ export function ColorPickerPopover({ label, value, onChange }: ColorPickerPopove
 
   return (
     <div className="pa-color-field">
-      <span className="pa-edit-field-label">{label}</span>
+      {labelAction ? (
+        <div className="pa-color-field-label-row">
+          <span className="pa-edit-field-label">{label}</span>
+          {labelAction}
+        </div>
+      ) : (
+        <span className="pa-edit-field-label">{label}</span>
+      )}
       <button
         ref={triggerRef}
         type="button"

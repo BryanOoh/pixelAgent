@@ -8,7 +8,9 @@ import { FontFamilySelect } from './FontFamilySelect';
 import { PropertyField } from './PropertyField';
 import { SpacingField } from './SpacingField';
 import { TextStylesPopover } from './TextStylesPopover';
+import { ColorTokenPopover } from './ColorTokenPopover';
 import { readTypographyPresets, type TypographyPreset } from './typographyPresets';
+import { readColorPresets, type ColorPreset } from './colorPresets';
 import { MultiSegmentedControl, SegmentedControl } from './SegmentedControl';
 import {
   IconAlignCenter,
@@ -90,6 +92,7 @@ export function EditPropertiesPanel({
   // Type scale tokens are static per page — read the document's CSS custom
   // properties once when the panel mounts.
   const [typographyPresets] = useState<TypographyPreset[]>(() => readTypographyPresets());
+  const [colorPresets] = useState<ColorPreset[]>(() => readColorPresets());
 
   const applyTypographyPreset = (preset: TypographyPreset) => {
     const changes: Record<string, string> = { 'font-size': preset.fontSize };
@@ -311,6 +314,14 @@ export function EditPropertiesPanel({
           label="Color"
           value={values.color ?? ''}
           onChange={(v) => onPropertyChange('color', v)}
+          labelAction={
+            <ColorTokenPopover
+              title="Text color"
+              presets={colorPresets}
+              value={values.color ?? ''}
+              onApply={(v) => onPropertyChange('color', v)}
+            />
+          }
         />
       </EditSection>
 
@@ -375,6 +386,14 @@ export function EditPropertiesPanel({
           label="Background"
           value={values['background-color'] ?? ''}
           onChange={(v) => onPropertyChange('background-color', v)}
+          labelAction={
+            <ColorTokenPopover
+              title="Fill color"
+              presets={colorPresets}
+              value={values['background-color'] ?? ''}
+              onApply={(v) => onPropertyChange('background-color', v)}
+            />
+          }
         />
         <PropertyField
           compact
@@ -390,6 +409,14 @@ export function EditPropertiesPanel({
           label="Border color"
           value={values['border-color'] ?? ''}
           onChange={(v) => onPropertyChange('border-color', v)}
+          labelAction={
+            <ColorTokenPopover
+              title="Border color"
+              presets={colorPresets}
+              value={values['border-color'] ?? ''}
+              onApply={(v) => onPropertyChange('border-color', v)}
+            />
+          }
         />
         <label className="pa-edit-stack-field">
           <span className="pa-edit-field-label">Style</span>
