@@ -44,6 +44,15 @@
   border-radius: inherit;
   pointer-events: none;
   filter: blur(4px) saturate(1.3);
+  /* Fade in the canvas once the WebGL pipeline has produced its first frame.
+   * Until then the surface's own `backdrop-filter: blur(4px) saturate(1.3)`
+   * is visible underneath, so the user sees frosted glass immediately and
+   * refraction smoothly resolves on top — no "no-glass → glass" pop. */
+  opacity: 0;
+  transition: opacity 200ms ease-out;
+}
+.pa-glass-surface-refraction[data-pa-ready='1'] {
+  opacity: 1;
 }
 
 /* Decorative gradient sheen — sits over the refracted backdrop. */

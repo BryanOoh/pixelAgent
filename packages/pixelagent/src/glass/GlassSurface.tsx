@@ -49,7 +49,16 @@ export function GlassSurface({
   // real value on mount, triggering a re-render with the correct branch.
   const [usesWebglFallback, setUsesWebglFallback] = useState<boolean | null>(null);
   useEffect(() => {
-    setUsesWebglFallback(!supportsBackdropSvgRefraction());
+    const needsFallback = !supportsBackdropSvgRefraction();
+    setUsesWebglFallback(needsFallback);
+    // Eager warm-up: kick off the lazy chunks the moment we know we'll need
+    // them, instead of waiting for the displacement map + RAF tick + capture
+    // to finish in series. The network fetch overlaps the synchronous setup,
+    // shaving the visible "no refraction → refraction" delay by 50–200 ms.
+    if (needsFallback) {
+      void import('./captureBehind');
+      void import('./glassDisplacementWebGL');
+    }
   }, []);
 
   // Tick that invalidates the cached refraction render on scroll/resize.
@@ -112,6 +121,11 @@ export function GlassSurface({
         height: cap.height,
         canvas,
       });
+      if (cancelled) return;
+      // First successful frame — fade the canvas in over the backdrop blur
+      // so the user never sees an empty/dark rectangle while the pipeline
+      // catches up. CSS handles the transition.
+      canvas.setAttribute('data-pa-ready', '1');
     })().catch(() => {
       // Capture or shader failure → keep the blur-only look (still better than
       // a flash of empty canvas). Swallowed quietly to avoid noisy consoles on
