@@ -54,6 +54,15 @@
 .pa-glass-surface-refraction[data-pa-ready='1'] {
   opacity: 1;
 }
+/* Instant hide while the surface is being dragged — the captured pixels are
+ * anchored to the surface's original position, so refraction would otherwise
+ * drag along as a stuck wallpaper. The transition is suppressed so the canvas
+ * vanishes immediately; on drop the surface re-captures and the canvas fades
+ * back in via the regular `data-pa-ready` path. */
+.pa-glass-surface[data-pa-dragging='1'] .pa-glass-surface-refraction {
+  opacity: 0;
+  transition: none;
+}
 
 /* Decorative gradient sheen — sits over the refracted backdrop. */
 .pa-glass-surface-bg {

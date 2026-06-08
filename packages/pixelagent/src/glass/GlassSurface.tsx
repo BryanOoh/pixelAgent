@@ -154,6 +154,52 @@ export function GlassSurface({
     };
   }, [usesWebglFallback]);
 
+  // Drag detection — when the surface is dragged the captured pixels would
+  // otherwise drag along with it as a stuck wallpaper. Hide the canvas the
+  // moment a pointer-down inside the surface turns into actual movement, then
+  // schedule a fresh capture when the drag ends. Only true drags (>3 px from
+  // press point) trigger the hide, so plain clicks on controls leave the
+  // refraction intact.
+  useEffect(() => {
+    if (!usesWebglFallback) return;
+    const surface = surfaceRef.current;
+    if (!surface) return;
+
+    let down: { x: number; y: number } | null = null;
+    let dragging = false;
+
+    const onDown = (e: PointerEvent) => {
+      down = { x: e.clientX, y: e.clientY };
+    };
+    const onMove = (e: PointerEvent) => {
+      if (!down || dragging) return;
+      if (Math.hypot(e.clientX - down.x, e.clientY - down.y) > 3) {
+        dragging = true;
+        surface.setAttribute('data-pa-dragging', '1');
+      }
+    };
+    const onUp = () => {
+      if (dragging) {
+        dragging = false;
+        surface.removeAttribute('data-pa-dragging');
+        setRefractionTick((t) => t + 1);
+      }
+      down = null;
+    };
+
+    surface.addEventListener('pointerdown', onDown);
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
+    return () => {
+      surface.removeEventListener('pointerdown', onDown);
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onUp);
+      surface.removeAttribute('data-pa-dragging');
+    };
+  }, [usesWebglFallback]);
+
   const filterPortal =
     map && usesWebglFallback === false && typeof document !== 'undefined'
       ? createPortal(
