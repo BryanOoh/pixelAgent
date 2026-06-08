@@ -33,7 +33,10 @@
       "import": "./dist/pixelagent.js"
     }
   },
-  "files": ["dist", "bin"],
+  "files": [
+    "dist",
+    "bin"
+  ],
   "sideEffects": true,
   "scripts": {
     "prepublishOnly": "npm run build",
