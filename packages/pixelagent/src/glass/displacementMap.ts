@@ -17,9 +17,14 @@ export interface DisplacementMap {
   height: number;
 }
 
-/** Rim pull strength — higher = more visible light refraction at edges. */
-export const REFRACTION_GAIN_DEFAULT = 0.35;
-export const REFRACTION_GAIN_ENHANCED = 0.48;
+/** Rim pull strength — higher = more visible light refraction at edges.
+ * Bumped from 0.35/0.48 → 0.50/0.65: the original tuning was visually
+ * imperceptible on dark host pages (rim displacement ~10px), reading as "no
+ * refraction." 0.50/0.65 gets to ~14px — the rim is clearly perceptible
+ * without introducing interior wave artifacts on the panel content (0.70+
+ * crossed that line). */
+export const REFRACTION_GAIN_DEFAULT = 0.5;
+export const REFRACTION_GAIN_ENHANCED = 0.65;
 
 export function generateLiquidGlassMap(
   width: number,
