@@ -1,4 +1,4 @@
-import { useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { CSSProperties, ReactNode } from 'react';
 import { generateLiquidGlassMap, type DisplacementMap } from './displacementMap';
@@ -38,8 +38,22 @@ export function GlassSurface({
   const refractionGain =
     intensity === 'enhanced' ? REFRACTION_GAIN_ENHANCED : REFRACTION_GAIN_DEFAULT;
   const surfaceRef = useRef<HTMLDivElement>(null);
+  const webglCanvasRef = useRef<HTMLCanvasElement>(null);
   const filterId = useMemo(() => `pa-lg-${++filterCounter}`, []);
   const [map, setMap] = useState<DisplacementMap | null>(null);
+
+  // Decide the rendering path ON THE CLIENT only — `supportsBackdropSvgRefraction`
+  // returns false during SSR (no navigator), which would mismatch hydration if
+  // we keyed the JSX off of it directly. Starting at `null` makes both server
+  // and first client render produce the same DOM; the effect flips it to the
+  // real value on mount, triggering a re-render with the correct branch.
+  const [usesWebglFallback, setUsesWebglFallback] = useState<boolean | null>(null);
+  useEffect(() => {
+    setUsesWebglFallback(!supportsBackdropSvgRefraction());
+  }, []);
+
+  // Tick that invalidates the cached refraction render on scroll/resize.
+  const [refractionTick, setRefractionTick] = useState(0);
 
   useLayoutEffect(() => {
     const el = surfaceRef.current;
@@ -61,7 +75,11 @@ export function GlassSurface({
     };
 
     update();
-    const observer = new ResizeObserver(update);
+    const observer = new ResizeObserver(() => {
+      update();
+      // A surface resize invalidates the captured background too.
+      setRefractionTick((t) => t + 1);
+    });
     observer.observe(el);
     return () => {
       cancelAnimationFrame(raf);
@@ -69,8 +87,61 @@ export function GlassSurface({
     };
   }, [shape, radius, refractionGain]);
 
+  // WebGL refraction path (Safari/Firefox). Dynamic-imports the heavy
+  // dependencies — Chromium users never download these chunks because the
+  // useState flag stays false on their first effect run.
+  useEffect(() => {
+    if (!usesWebglFallback || !map) return;
+    const surface = surfaceRef.current;
+    const canvas = webglCanvasRef.current;
+    if (!surface || !canvas) return;
+
+    let cancelled = false;
+    (async () => {
+      const [{ captureBehind }, { renderDisplaced }] = await Promise.all([
+        import('./captureBehind'),
+        import('./glassDisplacementWebGL'),
+      ]);
+      if (cancelled) return;
+      const cap = await captureBehind({ surface });
+      if (cancelled || !cap) return;
+      await renderDisplaced({
+        background: cap.canvas,
+        displacementMap: map,
+        width: cap.width,
+        height: cap.height,
+        canvas,
+      });
+    })().catch(() => {
+      // Capture or shader failure → keep the blur-only look (still better than
+      // a flash of empty canvas). Swallowed quietly to avoid noisy consoles on
+      // pages with cross-origin assets the snapshot can't access.
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [usesWebglFallback, map, refractionTick]);
+
+  // Debounced re-capture on host scroll. Resize is already covered by the
+  // ResizeObserver above. Bound at capture phase so scrollable ancestors fire
+  // too, not just window.
+  useEffect(() => {
+    if (!usesWebglFallback) return;
+    let timeout: ReturnType<typeof setTimeout> | null = null;
+    const onScroll = () => {
+      if (timeout !== null) clearTimeout(timeout);
+      timeout = setTimeout(() => setRefractionTick((t) => t + 1), 200);
+    };
+    window.addEventListener('scroll', onScroll, { passive: true, capture: true });
+    return () => {
+      if (timeout !== null) clearTimeout(timeout);
+      window.removeEventListener('scroll', onScroll, true);
+    };
+  }, [usesWebglFallback]);
+
   const filterPortal =
-    map && supportsBackdropSvgRefraction() && typeof document !== 'undefined'
+    map && usesWebglFallback === false && typeof document !== 'undefined'
       ? createPortal(
           <svg
             aria-hidden
@@ -127,12 +198,19 @@ export function GlassSurface({
         style={{
           borderRadius: shape === 'capsule' ? '999px' : `${radius}px`,
           ...frostBackdropStyle(
-            map && supportsBackdropSvgRefraction() ? filterId : null,
+            map && usesWebglFallback === false ? filterId : null,
             intensity
           ),
           ...style,
         }}
       >
+        {usesWebglFallback ? (
+          <canvas
+            ref={webglCanvasRef}
+            className="pa-glass-surface-refraction"
+            aria-hidden="true"
+          />
+        ) : null}
         <div className="pa-glass-surface-bg" aria-hidden="true" />
         <div className="pa-glass-surface-shine" aria-hidden="true" />
         <div className="pa-glass-surface-content">{children}</div>

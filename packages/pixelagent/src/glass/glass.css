@@ -27,6 +27,25 @@
   display: none;
 }
 
+/* WebGL refraction canvas — rendered only when `supportsBackdropSvgRefraction()`
+ * is false (Safari, Firefox). Sits underneath the gradient sheen so the same
+ * highlight layering reads correctly across browsers.
+ *
+ * The `filter` mirrors the `blur + saturate` half of the Chromium chain
+ * (`backdrop-filter: blur(4px) saturate(1.3) url(#…)`); the rim displacement
+ * is already baked into the canvas pixels by the WebGL shader. Without this
+ * the panel reads as a transparent cutout instead of frosted glass. */
+.pa-glass-surface-refraction {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  filter: blur(4px) saturate(1.3);
+}
+
 /* Decorative gradient sheen — sits over the refracted backdrop. */
 .pa-glass-surface-bg {
   position: absolute;
