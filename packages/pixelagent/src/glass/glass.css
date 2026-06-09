@@ -5,8 +5,10 @@
   /* Do NOT use isolation: isolate — it prevents backdrop-filter from sampling
      page content behind the glass (hero text stays sharp). */
   overflow: hidden;
-  /* Frosted backdrop + rim — set on the surface (not a buried child layer). */
-  background: var(--pa-glass-surface-fill);
+  /* Tint moved to .pa-glass-surface-bg below so it paints ABOVE the WebGL
+   * refraction canvas (z-index 0). Leaving the tint on this element kept it
+   * buried under the canvas on Safari/Firefox/Zen, washing the panel out on
+   * bright host pages where captured pixels are nearly white. */
   border: 1px solid var(--pa-glass-border);
   box-shadow: var(--pa-glass-shadow), var(--pa-glass-rim);
   border-radius: inherit;
@@ -59,7 +61,12 @@
   opacity: 1;
 }
 
-/* Decorative gradient sheen — sits over the refracted backdrop. */
+/* Tint scrim + decorative gradient sheen — sits over the refracted backdrop.
+ * The tint (`--pa-glass-surface-fill`) lives here, not on the surface element,
+ * so it paints ABOVE the WebGL refraction canvas (z-index 0) on the
+ * Safari/Firefox/Zen path. On Chromium the visual is the same — the surface's
+ * `backdrop-filter` still blurs the page behind the surface, and this layer
+ * sits on top of that backdrop just as before. */
 .pa-glass-surface-bg {
   position: absolute;
   inset: 0;
@@ -67,7 +74,8 @@
   border-radius: inherit;
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0) 28%),
-    linear-gradient(0deg, rgba(255, 255, 255, 0.03) 0%, rgba(255, 255, 255, 0) 22%);
+    linear-gradient(0deg, rgba(255, 255, 255, 0.03) 0%, rgba(255, 255, 255, 0) 22%),
+    var(--pa-glass-surface-fill);
   pointer-events: none;
 }
 
