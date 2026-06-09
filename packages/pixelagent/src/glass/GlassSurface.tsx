@@ -96,6 +96,23 @@ export function GlassSurface({
     update();
     const observer = new ResizeObserver(() => {
       update();
+      // Sync-resize the WebGL canvas to the new surface dimensions in the
+      // SAME frame as the layout change. Without this, CSS scales the
+      // canvas (`width:100%; height:100%`) to the surface's new larger
+      // size while the canvas intrinsic pixel buffer is still at the old
+      // smaller dimensions — the browser stretches stale pixels and the
+      // refraction reads as vertical "smear" bands until the async render
+      // lands. Resizing here also clears the canvas to transparent, so
+      // the brief gap shows the surface's backdrop blur (frosted glass)
+      // rather than distorted stale content.
+      const canvas = webglCanvasRef.current;
+      if (canvas) {
+        const r = el.getBoundingClientRect();
+        const w = Math.max(1, Math.round(r.width));
+        const h = Math.max(1, Math.round(r.height));
+        if (canvas.width !== w) canvas.width = w;
+        if (canvas.height !== h) canvas.height = h;
+      }
       // A surface resize invalidates the captured background too.
       setRefractionTick((t) => t + 1);
     });
