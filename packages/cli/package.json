@@ -1,6 +1,6 @@
 {
   "name": "@pixelagent/cli",
-  "version": "0.1.25",
+  "version": "0.1.26",
   "description": "PixelAgent setup CLI — configure MCP for Claude Code and Cursor",
   "license": "MIT",
   "publishConfig": {
@@ -15,12 +15,20 @@
   "bugs": {
     "url": "https://github.com/BryanOoh/pixelAgent/issues"
   },
-  "keywords": ["pixelagent", "cli", "mcp", "cursor", "claude"],
+  "keywords": [
+    "pixelagent",
+    "cli",
+    "mcp",
+    "cursor",
+    "claude"
+  ],
   "type": "module",
   "bin": {
     "pixelagent": "./dist/index.js"
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "prepublishOnly": "npm run build",
     "build": "tsc -p tsconfig.json",

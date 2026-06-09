@@ -1,6 +1,6 @@
 {
   "name": "@pixelagent/shared",
-  "version": "0.1.25",
+  "version": "0.1.26",
   "description": "Shared types and DOM utilities for PixelAgent",
   "license": "MIT",
   "publishConfig": {
@@ -15,7 +15,12 @@
   "bugs": {
     "url": "https://github.com/BryanOoh/pixelAgent/issues"
   },
-  "keywords": ["pixelagent", "dom", "design-tools", "react"],
+  "keywords": [
+    "pixelagent",
+    "dom",
+    "design-tools",
+    "react"
+  ],
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -25,7 +30,9 @@
       "import": "./dist/index.js"
     }
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "prepublishOnly": "npm run build",
     "build": "tsc -p tsconfig.json",
