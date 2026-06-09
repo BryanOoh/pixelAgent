@@ -176,6 +176,12 @@ export function GlassSurface({
       if (Math.hypot(e.clientX - down.x, e.clientY - down.y) > 3) {
         dragging = true;
         surface.setAttribute('data-pa-dragging', '1');
+        // Also clear the ready flag so the post-drop frame doesn't briefly
+        // flash the stale canvas: without this, the moment `data-pa-dragging`
+        // is removed `data-pa-ready=1` is still set and CSS would fade the
+        // (still-stale) canvas back in for one paint before the fresh
+        // capture lands.
+        webglCanvasRef.current?.removeAttribute('data-pa-ready');
       }
     };
     const onUp = () => {
