@@ -39,6 +39,7 @@ export function GlassSurface({
     intensity === 'enhanced' ? REFRACTION_GAIN_ENHANCED : REFRACTION_GAIN_DEFAULT;
   const surfaceRef = useRef<HTMLDivElement>(null);
   const webglCanvasRef = useRef<HTMLCanvasElement>(null);
+  const isDraggingRef = useRef(false);
   const filterId = useMemo(() => `pa-lg-${++filterCounter}`, []);
   const [map, setMap] = useState<DisplacementMap | null>(null);
 
@@ -107,12 +108,19 @@ export function GlassSurface({
 
     let cancelled = false;
     (async () => {
-      const [{ captureBehind }, { renderDisplaced }] = await Promise.all([
+      const [capturer, { renderDisplaced }] = await Promise.all([
         import('./captureBehind'),
         import('./glassDisplacementWebGL'),
       ]);
       if (cancelled) return;
-      const cap = await captureBehind({ surface });
+      // Outside a drag, treat each render as authoritative — invalidate the
+      // cache so host-page changes (newly-mounted overlays, selection
+      // highlights, etc.) are picked up in the next snapshot. Inside a drag
+      // we keep the cache to stay at 60 fps; the next non-drag tick refreshes.
+      if (!isDraggingRef.current) {
+        capturer.invalidateCaptureCache();
+      }
+      const cap = await capturer.captureBehind({ surface });
       if (cancelled || !cap) return;
       await renderDisplaced({
         background: cap.canvas,
@@ -178,13 +186,16 @@ export function GlassSurface({
       if (!down) return;
       if (!dragging && Math.hypot(e.clientX - down.x, e.clientY - down.y) > 3) {
         dragging = true;
+        isDraggingRef.current = true;
       }
       if (dragging) scheduleTick();
     };
     const onUp = () => {
       if (dragging) {
         dragging = false;
-        // Final tick so the canvas lands on the exact drop position.
+        isDraggingRef.current = false;
+        // Final tick so the canvas lands on the exact drop position AND
+        // re-captures with whatever DOM changed during the drag.
         scheduleTick();
       }
       down = null;
