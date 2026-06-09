@@ -125,9 +125,14 @@ export async function captureBehind(
   const ctx = out.getContext('2d');
   if (!ctx) return null;
 
-  // Capture is at `scale`; source coords on `full` are scaled accordingly.
-  // Host clientRect coords are page-relative; modern-screenshot rasterises in
-  // page-coordinate space, so no scroll offset is needed.
+  // Pre-blur + saturate the captured pixels BEFORE handing them to the
+  // displacement shader. Matches Chromium's chain order
+  // (`backdrop-filter: blur(4px) saturate(1.3) url(#…)`) where the
+  // displacement reads a softened image, so the rim doesn't smear the
+  // sharp high-contrast edges of host content (e.g. big hero text)
+  // into white "fingerprint" artifacts. Without this the shader
+  // displaces hard pixel transitions and the result reads as broken.
+  ctx.filter = 'blur(4px) saturate(1.3)';
   ctx.drawImage(
     full,
     Math.round(rect.left * scale),
@@ -139,6 +144,7 @@ export async function captureBehind(
     width,
     height
   );
+  ctx.filter = 'none';
 
   return { canvas: out, width, height };
 }

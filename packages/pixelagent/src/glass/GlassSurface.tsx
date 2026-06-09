@@ -40,6 +40,15 @@ export function GlassSurface({
   const surfaceRef = useRef<HTMLDivElement>(null);
   const webglCanvasRef = useRef<HTMLCanvasElement>(null);
   const isDraggingRef = useRef(false);
+  // Module ref keeps the resolved fallback APIs across re-renders so drag
+  // frames don't pay the cost of awaiting a dynamic-import promise (the
+  // module is cached, but `await` still posts a microtask each frame which
+  // compounds visibly at 60 fps).
+  const fallbackModsRef = useRef<{
+    captureBehind: typeof import('./captureBehind').captureBehind;
+    invalidateCaptureCache: typeof import('./captureBehind').invalidateCaptureCache;
+    renderDisplaced: typeof import('./glassDisplacementWebGL').renderDisplaced;
+  } | null>(null);
   const filterId = useMemo(() => `pa-lg-${++filterCounter}`, []);
   const [map, setMap] = useState<DisplacementMap | null>(null);
 
@@ -108,21 +117,34 @@ export function GlassSurface({
 
     let cancelled = false;
     (async () => {
-      const [capturer, { renderDisplaced }] = await Promise.all([
-        import('./captureBehind'),
-        import('./glassDisplacementWebGL'),
-      ]);
-      if (cancelled) return;
+      // First call: resolve the dynamic imports once and pin their exports
+      // to a ref. Subsequent calls during a drag skip the await chain and
+      // run synchronously up to the (async) captureBehind, removing a
+      // microtask hop per frame that was visible as input lag.
+      let mods = fallbackModsRef.current;
+      if (!mods) {
+        const [capturer, renderer] = await Promise.all([
+          import('./captureBehind'),
+          import('./glassDisplacementWebGL'),
+        ]);
+        if (cancelled) return;
+        mods = {
+          captureBehind: capturer.captureBehind,
+          invalidateCaptureCache: capturer.invalidateCaptureCache,
+          renderDisplaced: renderer.renderDisplaced,
+        };
+        fallbackModsRef.current = mods;
+      }
       // Outside a drag, treat each render as authoritative — invalidate the
       // cache so host-page changes (newly-mounted overlays, selection
       // highlights, etc.) are picked up in the next snapshot. Inside a drag
       // we keep the cache to stay at 60 fps; the next non-drag tick refreshes.
       if (!isDraggingRef.current) {
-        capturer.invalidateCaptureCache();
+        mods.invalidateCaptureCache();
       }
-      const cap = await capturer.captureBehind({ surface });
+      const cap = await mods.captureBehind({ surface });
       if (cancelled || !cap) return;
-      await renderDisplaced({
+      await mods.renderDisplaced({
         background: cap.canvas,
         displacementMap: map,
         width: cap.width,

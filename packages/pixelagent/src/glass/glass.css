@@ -43,7 +43,11 @@
   z-index: 0;
   border-radius: inherit;
   pointer-events: none;
-  filter: blur(4px) saturate(1.3);
+  /* No CSS filter here — captureBehind pre-blurs the source pixels via
+   * `ctx.filter = 'blur(4px) saturate(1.3)'` before they ever reach the
+   * shader, so the displacement reads a softened image (mirroring Chromium's
+   * blur → saturate → displace chain order). Adding CSS blur on top would
+   * double-blur and wash the panel out. */
   /* Fade in the canvas once the WebGL pipeline has produced its first frame.
    * Until then the surface's own `backdrop-filter: blur(4px) saturate(1.3)`
    * is visible underneath, so the user sees frosted glass immediately and
