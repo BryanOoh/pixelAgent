@@ -137,29 +137,24 @@ export function GlassSurface({
     };
   }, [usesWebglFallback, map, refractionTick]);
 
-  // Debounced re-capture on host scroll. Resize is already covered by the
-  // ResizeObserver above. Bound at capture phase so scrollable ancestors fire
-  // too, not just window.
+  // Re-render the refraction whenever the page content underneath might have
+  // shifted. Scroll just changes the crop region (the cached host snapshot
+  // stays valid), drag moves the surface (same), so both trigger a tick. The
+  // captureBehind cache absorbs the cost — only the first call ever runs
+  // modern-screenshot; subsequent calls re-crop the cached canvas in ~1 ms.
+  // Window resize + theme switch invalidate the cache (page content actually
+  // changed), wired below.
   useEffect(() => {
     if (!usesWebglFallback) return;
-    let timeout: ReturnType<typeof setTimeout> | null = null;
-    const onScroll = () => {
-      if (timeout !== null) clearTimeout(timeout);
-      timeout = setTimeout(() => setRefractionTick((t) => t + 1), 200);
-    };
+    const onScroll = () => setRefractionTick((t) => t + 1);
     window.addEventListener('scroll', onScroll, { passive: true, capture: true });
-    return () => {
-      if (timeout !== null) clearTimeout(timeout);
-      window.removeEventListener('scroll', onScroll, true);
-    };
+    return () => window.removeEventListener('scroll', onScroll, true);
   }, [usesWebglFallback]);
 
-  // Drag detection — when the surface is dragged the captured pixels would
-  // otherwise drag along with it as a stuck wallpaper. Hide the canvas the
-  // moment a pointer-down inside the surface turns into actual movement, then
-  // schedule a fresh capture when the drag ends. Only true drags (>3 px from
-  // press point) trigger the hide, so plain clicks on controls leave the
-  // refraction intact.
+  // Drag tracking — match Chromium's live `backdrop-filter` behavior by
+  // re-cropping the cached snapshot at the surface's new position on every
+  // pointer-move during a drag. ~1 ms per frame keeps refraction stuck to
+  // the page underneath instead of the panel.
   useEffect(() => {
     if (!usesWebglFallback) return;
     const surface = surfaceRef.current;
@@ -167,28 +162,30 @@ export function GlassSurface({
 
     let down: { x: number; y: number } | null = null;
     let dragging = false;
+    let raf = 0;
+    const tick = () => {
+      raf = 0;
+      setRefractionTick((t) => t + 1);
+    };
+    const scheduleTick = () => {
+      if (raf === 0) raf = requestAnimationFrame(tick);
+    };
 
     const onDown = (e: PointerEvent) => {
       down = { x: e.clientX, y: e.clientY };
     };
     const onMove = (e: PointerEvent) => {
-      if (!down || dragging) return;
-      if (Math.hypot(e.clientX - down.x, e.clientY - down.y) > 3) {
+      if (!down) return;
+      if (!dragging && Math.hypot(e.clientX - down.x, e.clientY - down.y) > 3) {
         dragging = true;
-        surface.setAttribute('data-pa-dragging', '1');
-        // Also clear the ready flag so the post-drop frame doesn't briefly
-        // flash the stale canvas: without this, the moment `data-pa-dragging`
-        // is removed `data-pa-ready=1` is still set and CSS would fade the
-        // (still-stale) canvas back in for one paint before the fresh
-        // capture lands.
-        webglCanvasRef.current?.removeAttribute('data-pa-ready');
       }
+      if (dragging) scheduleTick();
     };
     const onUp = () => {
       if (dragging) {
         dragging = false;
-        surface.removeAttribute('data-pa-dragging');
-        setRefractionTick((t) => t + 1);
+        // Final tick so the canvas lands on the exact drop position.
+        scheduleTick();
       }
       down = null;
     };
@@ -198,11 +195,41 @@ export function GlassSurface({
     window.addEventListener('pointerup', onUp);
     window.addEventListener('pointercancel', onUp);
     return () => {
+      if (raf !== 0) cancelAnimationFrame(raf);
       surface.removeEventListener('pointerdown', onDown);
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', onUp);
       window.removeEventListener('pointercancel', onUp);
-      surface.removeAttribute('data-pa-dragging');
+    };
+  }, [usesWebglFallback]);
+
+  // Cache invalidation — window resize and theme change actually rearrange
+  // the underlying page pixels, so the cached snapshot is no longer valid.
+  // Tick triggers a fresh modern-screenshot pass on the next render.
+  useEffect(() => {
+    if (!usesWebglFallback) return;
+    let cancelled = false;
+    const invalidate = async () => {
+      if (cancelled) return;
+      const { invalidateCaptureCache } = await import('./captureBehind');
+      if (!cancelled) {
+        invalidateCaptureCache();
+        setRefractionTick((t) => t + 1);
+      }
+    };
+    const onResize = () => {
+      void invalidate();
+    };
+    window.addEventListener('resize', onResize);
+    const themeObserver = new MutationObserver(() => void invalidate());
+    themeObserver.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['data-theme', 'class'],
+    });
+    return () => {
+      cancelled = true;
+      window.removeEventListener('resize', onResize);
+      themeObserver.disconnect();
     };
   }, [usesWebglFallback]);
 
